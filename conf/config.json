@@ -1,0 +1,30 @@
+{
+  "main": {
+    "ethWeb3Url": "http://localhost:18545",
+    "wanWeb3Url": "http://localhost:8545",
+    "mpcUrl": "http://localhost:8545",
+    "isLeader": false,
+    "maxEthGasPrice": 50,
+    "gasPriceDelta": 10,
+    "wanGasPrice": 180,
+    "wanGasLimit": 470000,
+    "ethGasLimit": 470000,
+    "mailReceiver": "monitor@wanchain.org",
+    "issueCollectionPath": "./invalidTrans/",
+    "crossTokens": {}
+  },
+  "testnet": {
+    "ethWeb3Url": "http://localhost:18545",
+    "wanWeb3Url": "http://localhost:8545",
+    "mpcUrl": "http://localhost:8545",
+    "isLeader": false,
+    "maxEthGasPrice": 50,
+    "gasPriceDelta": 10,
+    "wanGasPrice": 180,
+    "wanGasLimit": 470000,
+    "ethGasLimit": 470000,
+    "mailReceiver": "monitor@wanchain.org",
+    "issueCollectionPath": "./invalidTrans/test/",
+    "crossTokens": {}
+  }
+}
