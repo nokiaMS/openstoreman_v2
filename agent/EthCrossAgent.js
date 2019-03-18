@@ -404,13 +404,21 @@ module.exports = class EthCrossAgent {
     this.logger.debug('input hash key:', hashKey);
     return hashKey;
   }
+
   getDecodeEventDbData(chainType, crossChain, tokenType, decodeEvent, event, lockedTime) {
     let content = {};
     let args = decodeEvent.args;
     let eventName = decodeEvent.event;
-    let eventX = args.xHash;
-    let hashX = this.getHashKey(eventX);
+    let eventX;
+    let hashX;
     let storeman;
+
+    if ((eventName === this.crossInfoInst.debtTransferEvent[0]) && (chainType === 'wan')) {
+      eventX = args.xHash;
+      hashX = this.getHashKey(eventX);
+    } else {
+      hashX = args.xHash;
+    }
 
     try {
       if ((eventName === this.crossInfoInst.debtTransferEvent[0]) && (chainType === 'wan')) {  //dealwith debt transfer event.
