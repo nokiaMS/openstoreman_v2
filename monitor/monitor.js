@@ -28,6 +28,24 @@ function getWeiFromEther(ether) {
 
 /* action: [functionName, paras, nextState, rollState] */
 var stateDict = {
+  debtTransfer: {
+    action: 'handleDebtTransfer',
+    paras: [
+        ['approve'], ['debtApproved'], ['debtTransfer', 'debtOutOfTryTimes']
+    ]
+  },
+    debtApproved: {
+    action: 'handleDebtTransfer',
+    paras: [
+        ['debtLock'], ['debtWaitingWanInboundLock'], ['debtApproved', 'debtOutOfTryTimes']
+    ]
+  },
+  debtWaitingWanInboundLock: {
+    action: 'handleDebtTransfer',
+    paras: [
+        ['redeem'], ['debtTransferDone'], ['debtWaitingWanInboundLock', 'debtOutOfTryTimes']
+    ]
+  },
   init: {
     action: 'initState',
     paras: ['waitingCross', 'checkApprove']
@@ -230,6 +248,78 @@ module.exports = class stateAction {
     }
   }
 
+  async handleDebtTransfer(actionArray, nextState, rollState) {
+    this.logger.debug("******** handleDebtTransfer begin ********");
+
+    this.logger.debug("******** handleDebtTransfer record info ********");
+    this.logger.debug(this.record);
+    this.logger.debug("******** handleDebtTransfer record info end ********");
+
+    let result = {};
+    let newAgent;
+    try {
+      if (this.record.transRetried !== 0) {
+        this.logger.debug("******** handleDebtTransfer asleep ********");
+        await sleep(retryWaitTime);
+        this.logger.debug("******** handleDebtTransfer asleep wake up ********");
+      }
+      for (var action of actionArray) {
+        if(action === 'redeem') {
+            let length = this.record.storemanLockEvent.length;
+            this.logger.debug("storemanRedeemEvent length:", length);
+        }
+
+        if((action === 'redeem') && (this.record.storemanLockEvent.length === 0)) {
+            return;
+        }
+
+        if(action === 'redeem') {
+            newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record);
+        } else {
+            newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
+        }
+        //let newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
+        this.logger.debug("******** handleDebtTransfer sendTrans begin ******** hashX:", this.hashX, "action:", action);
+        await newAgent.initAgentTransInfo(action);
+
+        /*Change redeem source address.*/
+        newAgent.trans.txParams.from = config.storemanWan;
+
+        newAgent.createTrans(action);
+
+        this.logger.debug("******** handleDebtTransfer transaction info ********");
+        this.logger.debug(newAgent.trans);
+        this.logger.debug("******** handleDebtTransfer transaction info end ********");
+
+        if (config.isLeader || !(moduleConfig.mpcSignature)) {
+          let content = await newAgent.sendTransSync();
+          this.logger.debug("******** handleDebtTransfer sendTransSync done ******** hashX:", this.hashX, "action:", action);
+          this.logger.debug("sendTrans result is ", content);
+          Object.assign(result, content);
+        } else {
+          await newAgent.validateTrans();
+          this.logger.debug("******** handleDebtTransfer validateTrans done ******** hashX:", this.hashX, "action:", action);
+        }
+
+        result.transRetried = 0;
+        result.status = nextState[0];
+        await this.updateRecord(result);
+      }
+    } catch (err) {
+      this.logger.error("******** handleDebtTransfer sendTransaction faild, action:", action, ", and record.hashX:", this.hashX);
+      this.logger.error("******** handleDebtTransfersendTransaction faild err is", err);
+      if (this.record.transRetried < retryTimes) {
+        result.transRetried = this.record.transRetried + 1;
+      } else {
+        result.transRetried = 0;
+        result.status = rollState[1];
+        await this.updateFailReason(action, err);
+      }
+      await this.updateRecord(result);
+      this.logger.debug(result);
+    }
+  }
+
   async sendTrans(actionArray, eventName, nextState, rollState) {
     this.logger.debug(this.record);
 
@@ -304,6 +394,10 @@ module.exports = class stateAction {
   async checkHashTimeout() {
     let record = this.record;
     let state = this.state;
+    if((state === 'debtTransfer') || (state === 'debtApproved') || (state === 'debtWaitingWanInboundLock') || (state === 'debtTransferDone')) {
+      return false;
+    }
+
     this.logger.debug("********************************** checkHashTimeout ********************************** hashX:", this.hashX, record.status);
 
     if (state === "interventionPending" || state === "fundLosted" ) {

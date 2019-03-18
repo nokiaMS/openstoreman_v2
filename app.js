@@ -70,6 +70,7 @@ async function init() {
         tokenList[crossChain][tokenType] = {};
 
         tokenList[crossChain][tokenType].wanchainHtlcAddr = moduleConfig.crossInfoDict[crossChain][tokenType].wanchainHtlcAddr;
+          tokenList[crossChain][tokenType].smgAddr = moduleConfig.crossInfoDict[crossChain][tokenType].smgAddr;
         tokenList[crossChain][tokenType].originalChainHtlcAddr = moduleConfig.crossInfoDict[crossChain][tokenType].originalChainHtlcAddr;
 
         tokenList.wanchainHtlcAddr.push(moduleConfig.crossInfoDict[crossChain][tokenType].wanchainHtlcAddr);
@@ -150,8 +151,8 @@ async function getScEvents(logger, chain, scAddr, topics, fromBlk, toBlk) {
   return events;
 }
 
-async function splitEvent(chainType, crossChain, tokenType, events) {
-  let multiEvents = [...events].map((event) => {
+async function splitEvent(chainType, crossChain, tokenType, events, forSmg = false) {
+  let multiEvents =  [...events].map((event) => {
     return new Promise(async (resolve, reject) => {
       try {
         let tokenTypeHandler = tokenList[crossChain][tokenType];
@@ -163,13 +164,21 @@ async function splitEvent(chainType, crossChain, tokenType, events) {
           crossAgent = tokenTypeHandler.originCrossAgent;
         }
 
-        let decodeEvent = crossAgent.contract.parseEvent(event);
+        let decodeEvent;
+        if(forSmg !== true) {
+          decodeEvent = crossAgent.contract.parseEvent(event);
+        } else {
+          decodeEvent = crossAgent.smgContract.parseEvent(event);
+        }
+
         let content;
         if (decodeEvent === null) {
           resolve();
           return;
         } else {
-          content = crossAgent.getDecodeEventDbData(chainType, crossChain, tokenType, decodeEvent, event, lockedTime);
+          if((forSmg === false) || ((forSmg === true) && (decodeEvent.event === 'StoremanGroupDebtTransferLogger'))) {
+            content = crossAgent.getDecodeEventDbData(chainType, crossChain, tokenType, decodeEvent, event, lockedTime);
+          }
         }
 
         if (content !== null) {
@@ -201,8 +210,10 @@ async function splitEvent(chainType, crossChain, tokenType, events) {
   }
 }
 
-async function syncChain(chainType, crossChain, tokenType, scAddr, logger, db) {
+async function syncChain(chainType, crossChain, tokenType, scAddrList, logger, db) {
   logger.debug("********************************** syncChain **********************************", chainType, crossChain, tokenType);
+  let scAddr = scAddrList['htlcAddr'];
+  let smgAddr = scAddrList['smgAddr'];
   let blockNumber = 0;
   try {
     blockNumber = await modelOps.getScannedBlockNumberSync(chainType);
@@ -222,6 +233,7 @@ async function syncChain(chainType, crossChain, tokenType, scAddr, logger, db) {
   let curBlock = 0;
   let topics = [];
   let events = [];
+  let smgEvents = [];
 
   try {
     curBlock = await chain.getBlockNumberSync();
@@ -235,10 +247,18 @@ async function syncChain(chainType, crossChain, tokenType, scAddr, logger, db) {
     try {
       if (from <= to) {
         events = await getScEvents(logger, chain, scAddr, topics, from, to);
+        logger.info("events: ", chainType, events.length);
+
+        if((tokenType === 'ERC20') && (smgAddr !== 'undefined') && (chainType === 'wan')) {
+          smgEvents = await getScEvents(logger, chain, smgAddr, topics, from, to);
+          logger.info("storemanGroup contract events: ", chainType, smgEvents.length);
+        }
       }
-      logger.info("events: ", chainType, events.length);
       if (events.length > 0) {
         await splitEvent(chainType, crossChain, tokenType, events);
+      }
+      if ((tokenType === 'ERC20') && (smgEvents.length > 0) && (chainType === 'wan')) {
+        await splitEvent(chainType, crossChain, tokenType, smgEvents, true);
       }
       modelOps.saveScannedBlockNumber(chainType, to);
       logger.info("********************************** saveState **********************************", chainType, crossChain, tokenType);
@@ -256,8 +276,11 @@ async function syncMain(logger, db) {
     try {
       for (let crossChain in moduleConfig.crossInfoDict) {
         for (let tokenType in moduleConfig.crossInfoDict[crossChain]) {
-          syncChain(crossChain.toLowerCase(), crossChain, tokenType, tokenList[crossChain][tokenType].originalChainHtlcAddr, logger, db);
-          syncChain('wan', crossChain, tokenType, tokenList[crossChain][tokenType].wanchainHtlcAddr, logger, db);
+          let scAddrList = {'htlcAddr':tokenList[crossChain][tokenType].wanchainHtlcAddr};
+          syncChain(crossChain.toLowerCase(), crossChain, tokenType, scAddrList, logger, db);
+
+          scAddrList = {'htlcAddr':tokenList[crossChain][tokenType].wanchainHtlcAddr, 'smgAddr': tokenList[crossChain][tokenType].smgAddr};
+          syncChain('wan', crossChain, tokenType, scAddrList, logger, db);
         }
       }
     } catch (err) {
@@ -318,12 +341,12 @@ async function handlerMain(logger, db) {
       }
       if (global.storemanRestart) {
         option.status = {
-          $nin: ['redeemFinished', 'revokeFinished', 'transIgnored', 'fundLostFinished']
+          $nin: ['redeemFinished', 'revokeFinished', 'transIgnored', 'fundLostFinished','debtTransfer', 'debtApproved', 'debtWaitingWanInboundLock', 'debtTransferDone']
         }
         global.storemanRestart = false;
       } else {
         option.status = {
-          $nin: ['redeemFinished', 'revokeFinished', 'transIgnored', 'fundLostFinished', 'interventionPending']
+          $nin: ['redeemFinished', 'revokeFinished', 'transIgnored', 'fundLostFinished', 'interventionPending','debtTransfer', 'debtApproved', 'debtWaitingWanInboundLock', 'debtTransferDone']
         }
       }
       let history = await modelOps.getEventHistory(option);
@@ -345,8 +368,34 @@ async function handlerMain(logger, db) {
           logger.error("monitorRecord error:", error);
         }
       }
+
+      /* get debtTransfer event from db.*/
+      let debtOption = {
+        status: {
+          $in: ['debtTransfer', 'debtWaitingWanInboundLock', 'debtApproved']
+        }
+      }
+
+      let debtHistory = await modelOps.getEventHistory(debtOption);
+      logger.debug('debt transfer history length is ', debtHistory.length);
+
+      for (let i = 0; i < debtHistory.length; i++) {
+        let record = debtHistory[i];
+
+        let cur = Date.now();
+        if (handlingList[record.hashX]) {
+          continue;
+        }
+        handlingList[record.hashX] = cur;
+
+        try {
+          monitorRecord(record);
+        } catch (error) {
+          logger.error("debt transfer monitorRecord error:", error);
+        }
+      }
     } catch (err) {
-      logger.error("handlerMain error:", error);
+      logger.error("debt transfer handler error:", error);
     }
     await sleep(moduleConfig.INTERVAL_TIME);
   }

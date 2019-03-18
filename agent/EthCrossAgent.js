@@ -9,6 +9,7 @@ let Contract = require("contract/Contract.js");
 let ethRawTrans = require("trans/EthRawTrans.js");
 let wanRawTrans = require("trans/WanRawTrans.js");
 
+const createKeccakHash = require('keccak');
 let MPC = require("mpc/mpc.js");
 
 const moduleConfig = require('conf/moduleConfig.js');
@@ -35,6 +36,10 @@ module.exports = class EthCrossAgent {
     let abi = (this.transChainType !== 'wan') ? crossInfoInst.originalChainHtlcAbi : crossInfoInst.wanchainHtlcAbi;
     this.contractAddr = (this.transChainType !== 'wan') ? crossInfoInst.originalChainHtlcAddr : crossInfoInst.wanchainHtlcAddr;
     this.contract = new Contract(abi, this.contractAddr);
+
+    let smgabi = crossInfoInst.smgAbi;
+    this.smgContractAddr = crossInfoInst.smgAddr;
+    this.smgContract = new Contract(smgabi, this.smgContractAddr);
 
     this.crossFunc = (this.crossDirection === 0) ? crossInfoInst.depositFunc : crossInfoInst.withdrawFunc;
     this.crossEvent = (this.crossDirection === 0) ? crossInfoInst.depositEvent : crossInfoInst.withdrawEvent;
@@ -83,7 +88,7 @@ module.exports = class EthCrossAgent {
   getTransChainType(crossDirection, action) {
 
     if (this.crossDirection === 0) {
-      if (action === 'redeem') {
+      if ((action === 'redeem') || (action === 'handleDebtTransfer')) {
         return this.crossChain;
       } else {
         return 'wan';
@@ -200,7 +205,7 @@ module.exports = class EthCrossAgent {
 
     return new Promise(async (resolve, reject) => {
       try {
-        if (action === 'redeem') {
+        if ((action === 'redeem') || (action === 'handleDebtTransfer')) {
           from = (this.crossDirection === 0) ? config.storemanEth : config.storemanWan;
         } else {
           from = (this.crossDirection === 0) ? config.storemanWan : config.storemanEth;
@@ -390,14 +395,40 @@ module.exports = class EthCrossAgent {
     return decodeEvent.args.storeman;
   }
 
+  getHashKey(key){
+    let kBuf = new Buffer(key.slice(2), 'hex');
+    let h = createKeccakHash('keccak256');
+    h.update(kBuf);
+    let hashKey = '0x' + h.digest('hex');
+    this.logger.debug('input key:', key);
+    this.logger.debug('input hash key:', hashKey);
+    return hashKey;
+  }
   getDecodeEventDbData(chainType, crossChain, tokenType, decodeEvent, event, lockedTime) {
     let content = {};
     let args = decodeEvent.args;
     let eventName = decodeEvent.event;
-    let hashX = args.xHash;
+    let eventX = args.xHash;
+    let hashX = this.getHashKey(eventX);
     let storeman;
 
     try {
+      if ((eventName === this.crossInfoInst.debtTransferEvent[0]) && (chainType === 'wan')) {  //dealwith debt transfer event.
+          this.logger.debug("********************************** Deal with debt transfer event ********************************** hashX", hashX);
+          content = {
+              x: eventX,
+              hashX: hashX,
+              direction: 0,
+              crossChain: crossChain.toLowerCase(),
+              tokenType: tokenType,
+              tokenAddr: args._tokenOrigAddr,       //token address.
+              crossAddress: args._locatedMpcAddr,   //wan address of the stopping storeman group.
+              toHtlcAddr: args._objectSmgAddr,      //address of the target storeman group.
+              value: args._debtValue,               //value for cross-transfer.
+              status: 'debtTransfer'
+          };
+          return [hashX, content];
+        }
       if (!((eventName === this.crossInfoInst.depositEvent[2] && chainType !== 'wan') ||
         (eventName === this.crossInfoInst.withdrawEvent[2] && chainType === 'wan'))) {
         storeman = this.getDecodeEventStoremanGroup(decodeEvent);

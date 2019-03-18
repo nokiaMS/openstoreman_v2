@@ -36,7 +36,7 @@ module.exports = class Erc20CrossAgent extends EthCrossAgent {
 
     return new Promise(async (resolve, reject) => {
       try {
-        if (action === 'approve' || action === 'approveZero') {
+        if (action === 'approve' || action === 'approveZero' || action === 'debtLock') {
           from = config.storemanEth;
         } else if (action === 'redeem') {
           from = (this.crossDirection === 0) ? config.storemanEth : config.storemanWan;
@@ -75,6 +75,7 @@ module.exports = class Erc20CrossAgent extends EthCrossAgent {
   }
   getApproveData() {
     this.logger.debug("********************************** funcInterface **********************************", this.approveFunc);
+    this.logger.debug('getApproveData: approveFunc-', this.approveFunc, 'contractAddr-', this.contractAddr, 'amount-', this.amount);
     return this.tokenContract.constructData(this.approveFunc, this.contractAddr, this.amount);
   }
 
@@ -83,6 +84,13 @@ module.exports = class Erc20CrossAgent extends EthCrossAgent {
     this.logger.debug('getLockData: transChainType-', this.transChainType, 'crossDirection-', this.crossDirection, 'tokenAddr-', this.tokenAddr, 'hashKey-', this.hashKey, 'crossAddress-', this.crossAddress, 'Amount-', this.amount);
     return this.contract.constructData(this.crossFunc[0], this.tokenAddr, this.hashKey, this.crossAddress, this.amount);
   }
+
+  getDebtLockData() {
+      this.logger.debug("********************************** debt funcInterface **********************************", this.crossFunc[0], "hashX", this.hashKey);
+      this.logger.debug('getDebtLockData: transChainType-', this.transChainType, 'crossDirection-', this.crossDirection, 'tokenAddr-', this.tokenAddr, 'hashKey-', this.hashKey, 'crossAddress-', this.crossAddress, 'Amount-', this.amount);
+      return this.contract.constructData(this.crossFunc[0], this.tokenAddr, this.hashKey, this.record.toHtlcAddr, this.crossAddress, this.amount);
+  }
+
   getRedeemData() {
     this.logger.debug("********************************** funcInterface **********************************", this.crossFunc[1], "hashX", this.hashKey);
     this.logger.debug('getRedeemData: transChainType-', this.transChainType, 'crossDirection-', this.crossDirection, 'tokenAddr-', this.tokenAddr, 'hashKey-', this.hashKey, 'key-', this.key);
@@ -110,6 +118,9 @@ module.exports = class Erc20CrossAgent extends EthCrossAgent {
     } else if (action === 'revoke') {
       this.data = this.getRevokeData();
       this.build = this.buildRevokeData;
+    } else if (action === 'debtLock') {
+      this.data = this.getDebtLockData();
+      this.build = this.buildLockData;
     }
 
     this.logger.debug("********************************** setData **********************************", this.data, "hashX", this.hashKey);
