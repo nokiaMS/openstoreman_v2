@@ -181,6 +181,16 @@ async function splitEvent(chainType, crossChain, tokenType, events, forSmg = fal
           }
         }
 
+        /*Check debt transfer event.*/
+        if((decodeEvent.event === 'StoremanGroupDebtTransferLogger') && (content !== null)) {
+          let option = {hashX: {$in: [content[0]]}};
+          let history = await modelOps.getEventHistory(option);
+          if(history.length > 0) {
+              resolve();
+              return; //the event had been handled,so ignore the current one.
+          }
+        }
+
         if (content !== null) {
           if(content[1].hasOwnProperty("walletRevokeEvent")) {
             let option = {
@@ -276,7 +286,7 @@ async function syncMain(logger, db) {
     try {
       for (let crossChain in moduleConfig.crossInfoDict) {
         for (let tokenType in moduleConfig.crossInfoDict[crossChain]) {
-          let scAddrList = {'htlcAddr':tokenList[crossChain][tokenType].wanchainHtlcAddr};
+          let scAddrList = {'htlcAddr':tokenList[crossChain][tokenType].originalChainHtlcAddr};
           syncChain(crossChain.toLowerCase(), crossChain, tokenType, scAddrList, logger, db);
 
           scAddrList = {'htlcAddr':tokenList[crossChain][tokenType].wanchainHtlcAddr, 'smgAddr': tokenList[crossChain][tokenType].smgAddr};
