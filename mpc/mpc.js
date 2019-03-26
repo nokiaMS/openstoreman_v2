@@ -23,7 +23,7 @@ module.exports = class mpc {
       Value: '0x' + trans.value.toString(16),
       Data: trans.data,
       ChainType: chainType,
-      ChainID: '0x' + chainId.toString(16)
+      ChainID: '0x' + parseInt(chainId).toString(16)
     };
     this.hashX = hashX;
     global.monitorLogger.debug(this.sendTxArgs);

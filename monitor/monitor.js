@@ -248,6 +248,22 @@ module.exports = class stateAction {
     }
   }
 
+  //add by lgj
+  async hasStoremanLockEvent() {
+    var blkTo = await global['wanChain'].getBlockNumberSync();
+    var blkFrom = blkTo - 2000;
+    if (blkTo < 2000) blkFrom = 0;
+    console.log("BlockFromTo:", blkFrom, blkTo);
+    var address = moduleConfig.crossInfoDict.ETH.ERC20.wanchainHtlcAddr;
+    var topic = [null, null, null, this.hashX];
+    console.log(address, topic, blkFrom, blkTo);
+
+    var events = await getGlobalChain('wan').getScEventSync(address, topic, blkFrom, blkTo);
+    console.log("hasStoremanLockEvent:", events);
+
+    return (events.length > 0);
+  }
+
   async handleDebtTransfer(actionArray, nextState, rollState) {
     this.logger.debug("******** handleDebtTransfer begin ********");
 
@@ -264,12 +280,8 @@ module.exports = class stateAction {
         this.logger.debug("******** handleDebtTransfer asleep wake up ********");
       }
       for (var action of actionArray) {
-        if(action === 'redeem') {
-            let length = this.record.storemanLockEvent.length;
-            this.logger.debug("storemanRedeemEvent length:", length);
-        }
-
-        if((action === 'redeem') && (this.record.storemanLockEvent.length === 0)) {
+        console.log('hasStoremanLockEvent', action);
+        if((action === 'redeem') && (!(await this.hasStoremanLockEvent()))) {
             return;
         }
 
@@ -283,8 +295,9 @@ module.exports = class stateAction {
         await newAgent.initAgentTransInfo(action);
 
         /*Change redeem source address.*/
-        newAgent.trans.txParams.from = config.storemanWan;
-
+        if(action === 'redeem') {
+          newAgent.trans.txParams.from = config.storemanWan;
+        }
         newAgent.createTrans(action);
 
         this.logger.debug("******** handleDebtTransfer transaction info ********");
