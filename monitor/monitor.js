@@ -22,6 +22,14 @@ const confirmTimes = moduleConfig.confirmTimes;
 const Web3 = require("web3");
 const web3 = new Web3();
 
+const createKeccakHash = require('keccak');
+const MPC = require("mpc/mpc.js");
+const stringRandom = require('string-random');
+
+function generateX() {
+    return stringRandom(64, {letters:'abcdef'});  // generate random number from 0~9 and 'abcdef'
+}
+
 function getWeiFromEther(ether) {
   return web3.toWei(ether, 'ether');
 }
@@ -29,23 +37,40 @@ function getWeiFromEther(ether) {
 /* action: [functionName, paras, nextState, rollState] */
 var stateDict = {
   debtTransfer: {
-    action: 'handleDebtTransfer',
+    action: 'handleDebtSyncX',
     paras: [
-        ['approve'], ['debtApproved'], ['debtTransfer', 'debtOutOfTryTimes']
+        ['debtApproved'], ['debtTransfer','debtOutOfTryTimes']
     ]
   },
-    debtApproved: {
+  debtApproved: {
     action: 'handleDebtTransfer',
     paras: [
         ['debtLock'], ['debtWaitingWanInboundLock'], ['debtApproved', 'debtOutOfTryTimes']
     ]
   },
   debtWaitingWanInboundLock: {
-    action: 'handleDebtTransfer',
+    action: 'debtWaitingWanInbound',
     paras: [
-        ['redeem'], ['debtTransferDone'], ['debtWaitingWanInboundLock', 'debtOutOfTryTimes']
+       ['debtSendingRedeem'], ['debtSendingRevoke', 'debtOutOfTryTimes']
     ]
   },
+  debtSendingRedeem: {
+    action: 'handleDebtTransfer',
+    paras: [
+        ['redeem'],['debtRedeemDone'], ['debtSendingRedeem', 'debtOutOfTryTimes']
+    ]
+  },
+  debtSendingRevoke: {
+    action: 'handleDebtTransfer',
+    paras: [
+        ['revoke'],['debtRevokeDone'], ['debtSendingRevoke', 'debtOutOfTryTimes']
+    ]
+  },
+  debtOutOfTryTimes: {
+    action: 'debtOutOfTryTimesHandler',
+    paras: []
+  },
+
   init: {
     action: 'initState',
     paras: ['waitingCross', 'checkApprove']
@@ -248,7 +273,6 @@ module.exports = class stateAction {
     }
   }
 
-  //add by lgj
   async hasStoremanLockEvent() {
     var blkTo = await global['wanChain'].getBlockNumberSync();
     var blkFrom = blkTo - 2000;
@@ -262,6 +286,99 @@ module.exports = class stateAction {
     console.log("hasStoremanLockEvent:", events);
 
     return (events.length > 0);
+  }
+
+  getHashKey(key){
+    let kBuf = new Buffer(key.slice(2), 'hex');
+    let h = createKeccakHash('keccak256');
+    h.update(kBuf);
+    let hashKey = '0x' + h.digest('hex');
+    this.logger.debug('input key:', key);
+    this.logger.debug('input hash key:', hashKey);
+    return hashKey;
+  }
+
+  //Need manual options for this scenario.
+  async debtOutOfTryTimesHandler() {
+      this.logger.debug("******** debtOutOfTryTimesHandler:", "key:",this.record.keyForX);
+      return;
+  }
+
+  /*Waiting inboundLock at wan side.*/
+  async debtWaitingWanInbound(nextState, rollState) {
+    let status;
+    if(Date.now() > this.record.HTLCtime) {//Need revoke.
+        let content = {
+            status: nextState[0]
+        };
+    } else {
+        let content = {
+            status: rollState[0]
+        };
+    }
+    await this.updateRecord(content);
+  }
+
+  /*generate and send X to mpc.*/
+  async handleDebtSyncX(nextState, rollState) {
+      this.logger.debug("******** handleDebtSyncX begin ********");
+
+      //check whether x has been set.
+      if(this.record.x !== '0x') {
+        this.logger.debug("******** handleDebtSyncX: x has been set, igonre this step.", "key:",this.record.keyForX,"x:",this.record.x);
+        return;
+      }
+
+      let generatedX;
+      let hashX;
+      let mpc = new MPC(null, '', '0x0', '');
+      if(moduleConfig.mpcSignature) {   //sign by mpc.
+        try {
+            if (config.isLeader) {        // is mpc leader.
+                generatedX = generateX();
+                let kBuf = new Buffer(generatedX.slice(2), 'hex');
+                this.logger.debug("******** handleDebtSyncX", "x:",generatedX,"key:",this.record.keyForX);
+                await mpc.putMsg(this.record.keyForX, kBuf);  //both returning true and returning false mean successful.
+            } else {                      // is not mpc leader.
+                this.logger.debug("******** handleDebtSyncX", "key:",this.record.keyForX);
+                generatedX = await mpc.getMsg(this.record.keyForX);  //both returning true and returning false mean successful.
+            }
+            hashX = this.getHashKey(generatedX);
+            let content = {
+                status: nextState[0],
+                x: generatedX,
+                hashX: hashX
+            };
+            await this.updateRecord(content);
+        } catch (err) {
+            this.logger.error("******** handleDebtSyncX exception:", "key:",this.record.keyForX,"error:", err);
+            let times = this.record.syncXRetried + 1;
+            let content;
+
+            if(times > config.retryTimes) {
+                content = {
+                    status: rollState[1],
+                    syncXRetried: times
+                };
+            } else {
+                content = {
+                    status: rollState[0],
+                    syncXRetried: times
+                };
+            }
+            await this.updateRecord(content);
+        }
+      } else {                          //sign by single node.
+          generatedX = generateX();
+          hashX = this.getHashKey(generatedX);
+          let content = {
+              status: nextState[0],
+              x: generatedX,
+              hashX: hashX
+          };
+          await this.updateRecord(content);
+      }
+      this.logger.debug("******** handleDebtSyncX done ********");
   }
 
   async handleDebtTransfer(actionArray, nextState, rollState) {

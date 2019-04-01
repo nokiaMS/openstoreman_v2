@@ -156,6 +156,16 @@ const eventSchema = new Schema({
     type: Array,
     default: []
   },
+  keyForX: {
+    type: String,
+    unique: true,
+    lowercase: true,
+    default: '0x'
+  },
+  syncXRetried:{
+    type: Number,
+    default: 0
+  },
 }, {
   collection: 'event'
 });

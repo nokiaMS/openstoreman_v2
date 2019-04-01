@@ -22,6 +22,7 @@
     "keythereum": "^1.0.4",
     "mongoose": "^5.2.12",
     "solc": "^0.4.24",
+    "string-random": "^0.1.3",
     "wanchain-util": "^1.2.0",
     "web3": "^0.20",
     "winston": "^3.0.0",

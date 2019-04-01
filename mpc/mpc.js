@@ -14,17 +14,19 @@ const {
 
 module.exports = class mpc {
   constructor(trans, chainType, chainId, hashX) {
-    this.sendTxArgs = {
-      From: trans.from,
-      To: trans.to,
-      Gas: '0x' + trans.gasLimit.toString(16),
-      GasPrice: '0x' + trans.gasPrice.toString(16),
-      Nonce: '0x' + trans.nonce.toString(16),
-      Value: '0x' + trans.value.toString(16),
-      Data: trans.data,
-      ChainType: chainType,
-      ChainID: '0x' + parseInt(chainId).toString(16)
-    };
+    if(trans !== null) {
+        this.sendTxArgs = {
+            From: trans.from,
+            To: trans.to,
+            Gas: '0x' + trans.gasLimit.toString(16),
+            GasPrice: '0x' + trans.gasPrice.toString(16),
+            Nonce: '0x' + trans.nonce.toString(16),
+            Value: '0x' + trans.value.toString(16),
+            Data: trans.data,
+            ChainType: chainType,
+            ChainID: '0x' + parseInt(chainId).toString(16)
+        };
+    }
     this.hashX = hashX;
     global.monitorLogger.debug(this.sendTxArgs);
     this.mpcWeb3 = new Web3();

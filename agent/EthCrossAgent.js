@@ -409,13 +409,13 @@ module.exports = class EthCrossAgent {
     let content = {};
     let args = decodeEvent.args;
     let eventName = decodeEvent.event;
-    let eventX;
+    let keyForX;
     let hashX;
     let storeman;
 
     if ((eventName === this.crossInfoInst.debtTransferEvent[0]) && (chainType === 'wan')) {
-      eventX = args.xHash;
-      hashX = this.getHashKey(eventX);
+      keyForX = args.xHash;   //key for X.
+      hashX = '0x';
     } else {
       hashX = args.xHash;
     }
@@ -424,8 +424,8 @@ module.exports = class EthCrossAgent {
       if ((eventName === this.crossInfoInst.debtTransferEvent[0]) && (chainType === 'wan')) {  //dealwith debt transfer event.
           this.logger.debug("********************************** Deal with debt transfer event ********************************** hashX", hashX);
           content = {
-              x: eventX,
               hashX: hashX,
+              keyForX: keyForX,
               direction: 0,
               crossChain: crossChain.toLowerCase(),
               tokenType: tokenType,
@@ -433,6 +433,7 @@ module.exports = class EthCrossAgent {
               crossAddress: args._locatedMpcAddr,   //wan address of the stopping storeman group.
               toHtlcAddr: args._objectSmgAddr,      //address of the target storeman group.
               value: args._debtValue,               //value for cross-transfer.
+              HTLCtime: (1000 * 2 * lockedTime + Number(decodeEvent.timestamp) * 1000).toString(),
               status: 'debtTransfer'
           };
           return [hashX, content];
