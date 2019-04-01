@@ -351,12 +351,12 @@ async function handlerMain(logger, db) {
       }
       if (global.storemanRestart) {
         option.status = {
-          $nin: ['redeemFinished', 'revokeFinished', 'transIgnored', 'fundLostFinished','debtTransfer', 'debtApproved', 'debtWaitingWanInboundLock', 'debtTransferDone']
+          $nin: ['redeemFinished', 'revokeFinished', 'transIgnored', 'fundLostFinished','debtTransfer', 'debtApproved', 'debtWaitingWanInboundLock', 'debtTransferDone','debtSendingRedeem','debtSendingRevoke','debtOutOfTryTimes']
         }
         global.storemanRestart = false;
       } else {
         option.status = {
-          $nin: ['redeemFinished', 'revokeFinished', 'transIgnored', 'fundLostFinished', 'interventionPending','debtTransfer', 'debtApproved', 'debtWaitingWanInboundLock', 'debtTransferDone']
+          $nin: ['redeemFinished', 'revokeFinished', 'transIgnored', 'fundLostFinished', 'interventionPending','debtTransfer', 'debtApproved', 'debtWaitingWanInboundLock', 'debtTransferDone','debtSendingRedeem','debtSendingRevoke','debtOutOfTryTimes']
         }
       }
       let history = await modelOps.getEventHistory(option);
@@ -382,7 +382,7 @@ async function handlerMain(logger, db) {
       /* get debtTransfer event from db.*/
       let debtOption = {
         status: {
-          $in: ['debtTransfer', 'debtWaitingWanInboundLock', 'debtApproved']
+          $in: ['debtTransfer', 'debtWaitingWanInboundLock', 'debtApproved','debtSendingRedeem','debtSendingRevoke']
         }
       }
 

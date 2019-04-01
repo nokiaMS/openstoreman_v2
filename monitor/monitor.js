@@ -274,17 +274,14 @@ module.exports = class stateAction {
   }
 
   async hasStoremanLockEvent() {
-    var blkTo = await global['wanChain'].getBlockNumberSync();
-    var blkFrom = blkTo - 2000;
-    if (blkTo < 2000) blkFrom = 0;
-    console.log("BlockFromTo:", blkFrom, blkTo);
-    var address = moduleConfig.crossInfoDict.ETH.ERC20.wanchainHtlcAddr;
-    var topic = [null, null, null, this.hashX];
-    console.log(address, topic, blkFrom, blkTo);
-
-    var events = await getGlobalChain('wan').getScEventSync(address, topic, blkFrom, blkTo);
-    console.log("hasStoremanLockEvent:", events);
-
+    let blkTo = await global['wanChain'].getBlockNumberSync();
+    let blkFrom = blkTo - moduleConfig.SAFE_BLOCK_NUM;
+    if (blkTo < moduleConfig.SAFE_BLOCK_NUM) {
+      blkFrom = 0;
+    }
+    let address = moduleConfig.crossInfoDict.ETH.ERC20.wanchainHtlcAddr;
+    let topic = [null, null, null, this.hashX];
+    let events = await getGlobalChain('wan').getScEventSync(address, topic, blkFrom, blkTo);
     return (events.length > 0);
   }
 
