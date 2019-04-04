@@ -303,8 +303,9 @@ module.exports = class stateAction {
 
   /*Waiting inboundLock at wan side.*/
   async debtWaitingWanInbound(nextState, rollState) {
+    this.logger.debug("******** debtWaitingWanInbound begin:", "key:",this.record.keyForX);
     let status;
-    if(Date.now() > this.record.HTLCtime) {//Need revoke.
+    if(Date.now() >= this.record.HTLCtime) {//Need revoke.
         let content = {
             status: nextState[0]
         };
@@ -314,6 +315,7 @@ module.exports = class stateAction {
         };
     }
     await this.updateRecord(content);
+    this.logger.debug("******** debtWaitingWanInbound end:", "key:", this.record.keyForX, "status:", content.status);
   }
 
   /*generate and send X to mpc.*/
@@ -339,8 +341,10 @@ module.exports = class stateAction {
             } else {                      // is not mpc leader.
                 this.logger.debug("******** handleDebtSyncX", "key:",this.record.keyForX);
                 generatedX = await mpc.getMsg(this.record.keyForX);  //both returning true and returning false mean successful.
+                this.logger.debug("******** handleDebtSyncX", "x:",generatedX);
             }
             hashX = this.getHashKey(generatedX);
+            this.logger.debug("******** handleDebtSyncX", "hashX:",hashX);
             let content = {
                 status: nextState[0],
                 x: generatedX,
@@ -368,6 +372,7 @@ module.exports = class stateAction {
       } else {                          //sign by single node.
           generatedX = generateX();
           hashX = this.getHashKey(generatedX);
+          this.logger.error("******** handleDebtSyncX:", "key:",this.record.keyForX,"x:", generatedX, "hashX:",hashX);
           let content = {
               status: nextState[0],
               x: generatedX,
@@ -381,9 +386,11 @@ module.exports = class stateAction {
   async handleDebtTransfer(actionArray, nextState, rollState) {
     this.logger.debug("******** handleDebtTransfer begin ********");
 
+    /*
     this.logger.debug("******** handleDebtTransfer record info ********");
     this.logger.debug(this.record);
     this.logger.debug("******** handleDebtTransfer record info end ********");
+    */
 
     let result = {};
     let newAgent;
@@ -405,7 +412,7 @@ module.exports = class stateAction {
             newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
         }
         //let newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
-        this.logger.debug("******** handleDebtTransfer sendTrans begin ******** hashX:", this.hashX, "action:", action);
+        this.logger.debug("******** handleDebtTransfer sendTrans begin ******** hashX:", this.hashX, "action:", action, "key:",this.record.keyForX);
         await newAgent.initAgentTransInfo(action);
 
         /*Change redeem source address.*/
