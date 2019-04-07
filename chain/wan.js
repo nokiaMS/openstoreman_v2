@@ -1,6 +1,6 @@
-const baseChain = require("chain/base.js");
-const chainSCConfig = require('conf/moduleConfig.js');
-let Contract = require("contract/Contract.js");
+const baseChain = require("./base.js");
+const chainSCConfig = require('../conf/moduleConfig.js');
+let Contract = require("../contract/Contract.js");
 
 class WanChain extends baseChain {
   constructor(log, web3) {

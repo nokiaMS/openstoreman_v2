@@ -1,9 +1,9 @@
 {
   "main": {
-    "ethWeb3Url": "http://localhost:18545",
-    "wanWeb3Url": "http://localhost:8545",
-    "mpcUrl": "http://localhost:8545",
-    "isLeader": false,
+    "ethWeb3Url": "http://54.213.194.74:18546",
+    "wanWeb3Url": "http://54.213.194.74:8546",
+    "mpcUrl": "http://127.0.0.1:51002",
+    "isLeader": true,
     "maxEthGasPrice": 50,
     "gasPriceDelta": 10,
     "wanGasPrice": 180,
@@ -11,13 +11,31 @@
     "ethGasLimit": 470000,
     "mailReceiver": "monitor@wanchain.org",
     "issueCollectionPath": "./invalidTrans/",
-    "crossTokens": {}
+    "crossTokens": {
+      "ETH": {
+        "0xa5709f27d93efe2a8c095e089f37f4a7dd4b493b": {
+          "tokenOrigAddr": "0xa5709f27d93efe2a8c095e089f37f4a7dd4b493b",
+          "tokenWanAddr": "0x4efe6030aebe6bc65cf362f4e1506228cc3ad4c3",
+          "ratio": "20000",
+          "minDeposit": "10000000000000000000",
+          "origHtlc": "0x9969e02de1a8298fad8c96bd3fb4c81a7ba9cae1",
+          "wanHtlc": "0x7ab71f108c800776f1556dd94747c7129378dcb4",
+          "withdrawDelayTime": "259200",
+          "tokenHash": "0x4d4f21f3692301782a96238a9941fe840259d75051e2b4f9b398410f4f280a96",
+          "tokenType": "ERC20",
+          "tokenSymbol": "DAI",
+          "decimals": "18"
+        }
+      }
+    },
+    "storemanWan": "0x5f58fa1c52710b49ff5e58e8ca2b7814de7db6ff",
+    "storemanEth": "0xf5d93ec148a7463a30bf13ca7437fb2a416663f5"
   },
   "testnet": {
-    "ethWeb3Url": "http://localhost:18545",
-    "wanWeb3Url": "http://localhost:8545",
-    "mpcUrl": "http://localhost:8545",
-    "isLeader": false,
+    "ethWeb3Url": "http://localhost:8101",
+    "wanWeb3Url": "http://localhost:51001",
+    "mpcUrl": "http://localhost:51002",
+    "isLeader": true,
     "maxEthGasPrice": 50,
     "gasPriceDelta": 10,
     "wanGasPrice": 180,

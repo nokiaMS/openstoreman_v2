@@ -1,6 +1,6 @@
-const eventSchema = require('db/models/eventModel.js');
-const stateSchema = require('db/models/stateModel.js');
-const DbAccess = require('db/dbAccess');
+const eventSchema = require('./models/eventModel.js');
+const stateSchema = require('./models/stateModel.js');
+const DbAccess = require('./dbAccess');
 
 class ModelOps {
   constructor(logger, chainDb) {

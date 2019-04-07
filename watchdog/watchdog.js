@@ -4,10 +4,10 @@ const fs = require('fs');
 const {
   getGlobalChain,
   sleep
-} = require('comm/lib');
+} = require('../comm/lib');
 
-const Logger = require('comm/logger.js');
-const config = require('watchdog/config.js');
+const Logger = require('../comm/logger.js');
+const config = require('./config.js');
 
 let log = new Logger("watchdogLogger", "log/watchdog.log", "log/watchdog_error.log", 'debug');
 let chainWeb3IpOpsDict = config.chainWeb3IpOpsDict;

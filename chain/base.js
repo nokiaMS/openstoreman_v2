@@ -1,4 +1,4 @@
-const chainSCConfig = require('conf/moduleConfig.js');
+const chainSCConfig = require('../conf/moduleConfig.js');
 const coder = require('web3/lib/solidity/coder');
 
 function sleep(time) {

@@ -3,16 +3,16 @@ const {
   // getChain,
   getGlobalChain,
   sleep
-} = require('comm/lib');
+} = require('../comm/lib');
 
-const ModelOps = require('db/modelOps');
-const Logger = require('comm/logger.js');
-const sendMail = require('comm/sendMail');
+const ModelOps = require('../db/modelOps');
+const Logger = require('../comm/logger.js');
+const sendMail = require('../comm/sendMail');
 
 const fs = require('fs');
 const path = require("path");
-const moduleConfig = require('conf/moduleConfig.js');
-const configJson = require('conf/config.json');
+const moduleConfig = require('../conf/moduleConfig.js');
+const configJson = require('../conf/config.json');
 const config = moduleConfig.testnet?configJson.testnet:configJson.main;
 
 const retryTimes = moduleConfig.retryTimes;
@@ -28,6 +28,10 @@ function getWeiFromEther(ether) {
 
 /* action: [functionName, paras, nextState, rollState] */
 var stateDict = {
+  coinTransfer: {
+    action: 'handleCoinTransfer',
+    params: [['coinTransfer'],['coinTransferDone', 'debtOutOfTryTimes']]
+  },
   debtTransfer: {
     action: 'handleDebtTransfer',
     paras: [
@@ -178,6 +182,9 @@ module.exports = class stateAction {
   }
 
   async initState(nextState, rollState) {
+    //Just for debt transfer event. So ignore other events.
+    return;
+
     console.log("ahahah", this.record.hashX);
   	if (this.record.walletLockEvent.length !== 0) {
       let status;
@@ -263,6 +270,75 @@ module.exports = class stateAction {
 
     return (events.length > 0);
   }
+
+  async handleCoinTransfer(actionArray, nextState) {
+    this.logger.debug("******** handleCoinTransfer begin ********");
+
+    this.logger.debug("******** handleCoinTransfer record info ********");
+    this.logger.debug(this.record);
+    this.logger.debug("******** handleCoinTransfer record info end ********");
+
+    let result = {};
+    let newAgent;
+    try {
+      if (this.record.transRetried !== 0) {
+        this.logger.debug("******** handleCoinTransfer asleep ********");
+        await sleep(retryWaitTime);
+        this.logger.debug("******** handleCoinTransfer asleep wake up ********");
+      }
+        for (var action of actionArray) {
+          console.log('hasStoremanLockEvent', action);
+                if(action === 'coinTransfer') {
+                    newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record);
+                } else {
+                    newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
+                }
+                //let newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
+                this.logger.debug("******** handleCoinTransfer sendTrans begin ******** hashX:", this.hashX, "action:", action);
+                await newAgent.initAgentTransInfo(action);
+
+                /*Change source address.*/
+                if(action === 'coinTransfer') {
+                  if(this.record.coinTransferChain === 'wan') {
+                      newAgent.trans.txParams.from = config.storemanWan;
+                  }
+                  newAgent.trans.txParams.to = this.record.toHtlcAddr;
+                  newAgent.trans.txParams.value = this.record.value;
+                }
+                //newAgent.createTrans(action);
+
+                this.logger.debug("******** handleCoinTransfer transaction info ********");
+                this.logger.debug(newAgent.trans);
+                this.logger.debug("******** handleCoinTransfer transaction info end ********");
+
+                if (config.isLeader || !(moduleConfig.mpcSignature)) {
+                    let content = await newAgent.sendTransSync();
+                    this.logger.debug("******** handleCoinTransfer sendTransSync done ******** hashX:", this.hashX, "action:", action);
+                    this.logger.debug("sendTrans result is ", content);
+                    Object.assign(result, content);
+                } else {
+                    await newAgent.validateTrans();
+                    this.logger.debug("******** handleCoinTransfer validateTrans done ******** hashX:", this.hashX, "action:", action);
+                }
+
+                result.transRetried = 0;
+                result.status = nextState[0];
+                await this.updateRecord(result);
+            }
+        } catch (err) {
+            this.logger.error("******** handleCoinTransfer sendTransaction faild, action:", action, ", and record.hashX:", this.hashX);
+            this.logger.error("******** handleCoinTransfer sendTransaction faild err is", err);
+            if (this.record.transRetried < retryTimes) {
+                result.transRetried = this.record.transRetried + 1;
+            } else {
+                result.transRetried = 0;
+                result.status = rollState[1];
+                await this.updateFailReason(action, err);
+            }
+            await this.updateRecord(result);
+            this.logger.debug(result);
+        }
+    }
 
   async handleDebtTransfer(actionArray, nextState, rollState) {
     this.logger.debug("******** handleDebtTransfer begin ********");

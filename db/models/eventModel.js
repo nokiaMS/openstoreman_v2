@@ -42,6 +42,10 @@ const eventSchema = new Schema({
     type: String,
     lowercase: true
   },
+  coinTransferChain: {
+    type: String,
+    lowercase: true
+  },
   toHtlcAddr: {
     type: String,
     lowercase: true

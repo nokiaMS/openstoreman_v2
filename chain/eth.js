@@ -1,4 +1,4 @@
-const baseChain = require("chain/base.js");
+const baseChain = require("./base.js");
 
 class EthChain extends baseChain {
   constructor(log, web3) {

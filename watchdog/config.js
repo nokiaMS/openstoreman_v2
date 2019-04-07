@@ -1,6 +1,6 @@
 const path = require('path');
 const moduleConfig = require('../conf/moduleConfig.js');
-let configJson = require('conf/config.json');
+let configJson = require('../conf/config.json');
 let storemanConfig = moduleConfig.testnet?configJson.testnet:configJson.main;
 
 const ethWeb3File = path.join(__dirname, '../conf/config.json');

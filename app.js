@@ -1,15 +1,16 @@
 "use strict"
 
-const Logger = require('comm/logger.js');
+const Logger = require('./comm/logger.js');
 
 const mongoose = require('mongoose');
-const ModelOps = require('db/modelOps');
-const Erc20CrossAgent = require("agent/Erc20CrossAgent.js");
-const EthCrossAgent = require("agent/EthCrossAgent.js");
-const StateAction = require("monitor/monitor.js");
+const ModelOps = require('./db/modelOps');
+const Erc20CrossAgent = require("./agent/Erc20CrossAgent.js");
+const EthCrossAgent = require("./agent/EthCrossAgent.js");
+const StateAction = require("./monitor/monitor.js");
 
-const moduleConfig = require('conf/moduleConfig.js');
-const configJson = require('conf/config.json');
+const createKeccakHash = require('keccak');
+const moduleConfig = require('./conf/moduleConfig.js');
+const configJson = require('./conf/config.json');
 const config = moduleConfig.testnet?configJson.testnet:configJson.main;
 
 const {
@@ -18,7 +19,7 @@ const {
   getGlobalChain,
   backupIssueFile,
   sleep
-} = require('comm/lib');
+} = require('./comm/lib');
 
 let handlingList = {};
 
@@ -426,6 +427,62 @@ db.on('connected', function(err) {
 
 let modelOps = new ModelOps(global.syncLogger, db);
 
+function getHashKey(key){
+    let kBuf = new Buffer(key.slice(2), 'hex');
+    let h = createKeccakHash('keccak256');
+    h.update(kBuf);
+    let hashKey = '0x' + h.digest('hex');
+    console.log('input key:', key);
+    console.log('input hash key:', hashKey);
+    return hashKey;
+}
+
+async function updateDebtOptionsToDb() {
+    //1. get configuration.
+    let debtOperationsConfig = require('./conf/debtOpts.json');
+    let debtOperations = debtOperationsConfig.debtOperations;
+    let coinOperations = debtOperationsConfig.coinOperations;
+    let lockedTime = tokenList.ETH.ERC20.lockedTime;
+
+    //2. make db content and save to db.
+    debtOperations.forEach(function (item, index, array) {
+        //2.1 get parameters
+        let hashX = getHashKey(item.x);
+        let content = {
+            hashX: hashX,
+            x: item.x,
+            direction: 0,
+            crossChain: 'eth',
+            tokenType: 'erc20',
+            tokenAddr: item.tokenAddr,       //token address.
+            crossAddress: item.wanAddr,   //wan address of the stopping storeman group.
+            toHtlcAddr: item.targetSmgAddr,      //address of the target storeman group.
+            value: item.value,               //value for cross-transfer.
+            HTLCtime: (1000 * 2 * lockedTime + Date.now()).toString(),
+            status: 'debtTransfer'
+        };
+        //save content to db.
+        let dbContent = [hashX, content];
+        modelOps.saveScannedEvent(...dbContent);
+    });
+
+    //3. make db content and save to db.
+    coinOperations.forEach(function (item, index, array) {
+        //3.1 get parameters
+        let content = {
+            hashX: item.id,
+            direction: 0,
+            toHtlcAddr: item.targetAddr,      //address of the target storeman group.
+            value: item.value,               //value for cross-transfer.
+            status: 'coinTransfer',
+            coinTransferChain: item.targetChain //target chain
+        };
+        //save content to db.
+        let dbContent = [item.id, content];
+        modelOps.saveScannedEvent(...dbContent);
+    });
+}
+
 async function main() {
   global.syncLogger.info("start storeman agent");
   if (Object.keys(config["crossTokens"]).length === 0) {
@@ -435,6 +492,7 @@ async function main() {
   }
   await init();
 
+  updateDebtOptionsToDb();
   syncMain(global.syncLogger, db);
   await updateRecordAfterRestart(global.monitorLogger);
   handlerMain(global.monitorLogger, db);

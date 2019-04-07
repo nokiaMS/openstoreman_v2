@@ -1,13 +1,13 @@
-const moduleConfig = require('conf/moduleConfig.js');
-const configPath = 'conf/config.json';
-let configJson = require('conf/config.json');
+const moduleConfig = require('../conf/moduleConfig.js');
+const configPath = '../conf/config.json';
+let configJson = require('../conf/config.json');
 let config = moduleConfig.testnet?configJson.testnet:configJson.main;
 const fs = require('fs');
 
 const Web3 = require("web3");
 const net = require('net');
-const EthChain = require('chain/eth');
-const WanChain = require('chain/wan');
+const EthChain = require('../chain/eth');
+const WanChain = require('../chain/wan');
 
 function getChain(chainType) {
   let loadConfig = function() {

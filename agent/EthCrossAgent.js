@@ -3,17 +3,17 @@ const {
   getGlobalChain,
   sleep
 //   getChain
-} = require('comm/lib');
+} = require('../comm/lib');
 
-let Contract = require("contract/Contract.js");
-let ethRawTrans = require("trans/EthRawTrans.js");
-let wanRawTrans = require("trans/WanRawTrans.js");
+let Contract = require("../contract/Contract.js");
+let ethRawTrans = require("../trans/EthRawTrans.js");
+let wanRawTrans = require("../trans/WanRawTrans.js");
 
 const createKeccakHash = require('keccak');
-let MPC = require("mpc/mpc.js");
+let MPC = require("../mpc/mpc.js");
 
-const moduleConfig = require('conf/moduleConfig.js');
-const configJson = require('conf/config.json');
+const moduleConfig = require('../conf/moduleConfig.js');
+const configJson = require('../conf/config.json');
 const config = moduleConfig.testnet?configJson.testnet:configJson.main;
 
 const Web3 = require("web3");

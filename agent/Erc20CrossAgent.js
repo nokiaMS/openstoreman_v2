@@ -2,14 +2,14 @@
 const {
   getGlobalChain,
   sleep
-} = require('comm/lib');
+} = require('../comm/lib');
 
-let Contract = require("contract/Contract.js");
+let Contract = require("../contract/Contract.js");
 
-const EthCrossAgent = require("agent/EthCrossAgent.js");
+const EthCrossAgent = require("./EthCrossAgent.js");
 
-const moduleConfig = require('conf/moduleConfig.js');
-const configJson = require('conf/config.json');
+const moduleConfig = require('../conf/moduleConfig.js');
+const configJson = require('../conf/config.json');
 const config = moduleConfig.testnet?configJson.testnet:configJson.main;
 
 const Web3 = require("web3");

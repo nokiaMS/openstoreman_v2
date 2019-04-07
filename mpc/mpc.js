@@ -1,16 +1,16 @@
 "use strict"
 
 const Web3 = require("web3");
-const web3Mpc = require("mpc/web3Mpc.js");
+const web3Mpc = require("./web3Mpc.js");
 var net = require('net');
-const moduleConfig = require('conf/moduleConfig.js');
-const configJson = require('conf/config.json');
+const moduleConfig = require('../conf/moduleConfig.js');
+const configJson = require('../conf/config.json');
 const config = moduleConfig.testnet?configJson.testnet:configJson.main;
 
 const {
   getGlobalChain,
 //   getChain
-} = require('comm/lib');
+} = require('../comm/lib');
 
 module.exports = class mpc {
   constructor(trans, chainType, chainId, hashX) {
