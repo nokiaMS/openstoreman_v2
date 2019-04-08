@@ -39,6 +39,9 @@ module.exports = class mpc {
   signViaMpc() {
     return new Promise((resolve, reject) => {
       try {
+        console.log("====>Data for sign:");
+        console.log(this.sendTxArgs);
+        console.log("====>Data for sign done.");
         this.mpcWeb3.storeman.signMpcTransaction(this.sendTxArgs, (err, result) => {
           if (!err) {
             global.monitorLogger.debug("********************************** mpc signViaMpc successfully **********************************", result, "hashX:", this.hashX);
@@ -60,6 +63,9 @@ module.exports = class mpc {
     return new Promise((resolve, reject) => {
       try {
         global.monitorLogger.debug(this.mpcWeb3.storeman);
+        console.log("====>Data for sign:");
+        console.log(this.sendTxArgs);
+        console.log("====>Data for sign done.");
         this.mpcWeb3.storeman.addValidMpcTx(this.sendTxArgs, (err, result) => {
           if (!err) {
             global.monitorLogger.debug("********************************** mpc addValidMpcTx successfully **********************************", result, "hashX:", this.hashX);

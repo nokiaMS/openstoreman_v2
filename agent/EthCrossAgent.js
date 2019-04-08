@@ -270,6 +270,11 @@ module.exports = class EthCrossAgent {
   }
 
   createTrans(action) {
+    if(action === 'coinTransfer') {
+      this.build =this.buildCoinTransfer;
+      return;
+    }
+
     if (action === 'lock') {
       this.data = this.getLockData();
       this.build = this.buildLockData;
@@ -315,7 +320,7 @@ module.exports = class EthCrossAgent {
         rawTx = await mpc.signViaMpc();
         this.logger.debug("********************************** sendTransaction signViaMpc ********************************** hashX", this.hashKey, rawTx);
       } else {
-        let password = process.env.KEYSTORE_PWD;
+        let password = process.env.KEYSTORE_PWD;;
         this.trans.txParams.gasPrice = '0x' + this.trans.txParams.gasPrice.toString(16);
         this.trans.txParams.gasLimit = '0x' + this.trans.txParams.gasLimit.toString(16);
         rawTx = this.trans.signFromKeystore(password);
@@ -365,6 +370,15 @@ module.exports = class EthCrossAgent {
     }
     content.storemanLockTxHash.push(result.toLowerCase());
     return content;
+  }
+
+  buildCoinTransfer(hashKey, result) {
+      this.logger.debug("********************************** buildCoinTransfer trans **********************************", hashKey);
+
+      let content = {
+          coinTransferHash: result
+      }
+      return content;
   }
 
   buildRedeemData(hashKey, result) {

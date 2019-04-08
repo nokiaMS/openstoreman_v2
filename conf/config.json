@@ -28,8 +28,8 @@
         }
       }
     },
-    "storemanWan": "0x5f58fa1c52710b49ff5e58e8ca2b7814de7db6ff",
-    "storemanEth": "0xf5d93ec148a7463a30bf13ca7437fb2a416663f5"
+    "storemanWan": "0x650bCcfbB285562b5850be89B1FafdB8c463B9e7",
+    "storemanEth": "0x23a92442DA52EB461209210AC317Ec1eBB7937E3"
   },
   "testnet": {
     "ethWeb3Url": "http://localhost:8101",

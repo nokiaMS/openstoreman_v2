@@ -30,7 +30,8 @@ function getWeiFromEther(ether) {
 var stateDict = {
   coinTransfer: {
     action: 'handleCoinTransfer',
-    params: [['coinTransfer'],['coinTransferDone', 'debtOutOfTryTimes']]
+    paras: [
+        ['coinTransfer'],['coinTransferDone', 'debtOutOfTryTimes']]
   },
   debtTransfer: {
     action: 'handleDebtTransfer',
@@ -287,10 +288,10 @@ module.exports = class stateAction {
         this.logger.debug("******** handleCoinTransfer asleep wake up ********");
       }
         for (var action of actionArray) {
-          console.log('hasStoremanLockEvent', action);
-                if(action === 'coinTransfer') {
+          //console.log('hasStoremanLockEvent', action);
+                if(this.record.coinTransferChain === 'wan') {
                     newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record);
-                } else {
+                } else if(this.record.coinTransferChain === 'eth'){
                     newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
                 }
                 //let newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
@@ -301,11 +302,14 @@ module.exports = class stateAction {
                 if(action === 'coinTransfer') {
                   if(this.record.coinTransferChain === 'wan') {
                       newAgent.trans.txParams.from = config.storemanWan;
+                  } else {
+                      newAgent.trans.txParams.from = config.storemanEth;
                   }
                   newAgent.trans.txParams.to = this.record.toHtlcAddr;
                   newAgent.trans.txParams.value = this.record.value;
                 }
-                //newAgent.createTrans(action);
+                newAgent.createTrans('coinTransfer');
+                newAgent.trans.txParams.data = '';
 
                 this.logger.debug("******** handleCoinTransfer transaction info ********");
                 this.logger.debug(newAgent.trans);
@@ -483,7 +487,7 @@ module.exports = class stateAction {
   async checkHashTimeout() {
     let record = this.record;
     let state = this.state;
-    if((state === 'debtTransfer') || (state === 'debtApproved') || (state === 'debtWaitingWanInboundLock') || (state === 'debtTransferDone')) {
+    if((state === 'coinTransfer') || (state === 'debtTransfer') || (state === 'debtApproved') || (state === 'debtWaitingWanInboundLock') || (state === 'debtTransferDone')) {
       return false;
     }
 

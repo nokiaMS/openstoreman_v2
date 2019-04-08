@@ -103,6 +103,11 @@ module.exports = class Erc20CrossAgent extends EthCrossAgent {
   }
 
   createTrans(action) {
+    if(action === 'coinTransfer') {
+      this.build =this.buildCoinTransfer;
+      return;
+    }
+
     if (action === 'approveZero') {
       this.data = this.getApproveData();
       this.build = this.buildApproveZeroData;
