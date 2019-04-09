@@ -453,7 +453,7 @@ async function updateDebtOptionsToDb() {
             x: item.x,
             direction: 0,
             crossChain: 'eth',
-            tokenType: 'erc20',
+            tokenType: 'ERC20',
             tokenAddr: item.tokenAddr,       //token address.
             crossAddress: item.wanAddr,   //wan address of the stopping storeman group.
             toHtlcAddr: item.targetSmgAddr,      //address of the target storeman group.

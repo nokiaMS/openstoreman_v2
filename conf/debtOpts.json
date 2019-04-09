@@ -1,23 +1,33 @@
 {
-  "debtOperations": [],
-  "coinOperations": [
+  "debtOperations": [
     {
-      "index": "0x00000000001",
-      "targetAddr": "0x1e6de7c24724725917e26b6171f75e67d5c58b91",
-      "targetChain": "wan",
-      "value": "1"
+      "x": "0x78eb00ec1c005fec86a074060cc1bc7513000000000000000000000000001111",
+      "tokenAddr": "0xbd7ef3192822daa4cd5787d09d3cf4f2b61bb913",
+      "wanAddr": "0x5f58fa1c52710b49ff5e58e8ca2b7814de7db6ff",
+      "targetSmgAddr": "0x49867eed5fb7cb6d2b62b43ab0cc684fb1058a9b",
+      "value": "100"
     },
     {
-      "index": "0x00000000002",
-      "targetAddr": "0x1e6de7c24724725917e26b6171f75e67d5c58b91",
-      "targetChain": "eth",
-      "value": "2"
+      "x": "0x78eb00ec1c005fec86a074060cc1bc7513000000000000000000000000001112",
+      "tokenAddr": "0xbd7ef3192822daa4cd5787d09d3cf4f2b61bb913",
+      "wanAddr": "0x5f58fa1c52710b49ff5e58e8ca2b7814de7db6ff",
+      "targetSmgAddr": "0x49867eed5fb7cb6d2b62b43ab0cc684fb1058a9b",
+      "value": "200"
     },
     {
-      "index": "0x00000000003",
-      "targetAddr": "0x1e6de7c24724725917e26b6171f75e67d5c58b91",
-      "targetChain": "wan",
-      "value": "1"
+      "x": "0x78eb00ec1c005fec86a074060cc1bc7513000000000000000000000000001113",
+      "tokenAddr": "0xbd7ef3192822daa4cd5787d09d3cf4f2b61bb913",
+      "wanAddr": "0x5f58fa1c52710b49ff5e58e8ca2b7814de7db6ff",
+      "targetSmgAddr": "0x49867eed5fb7cb6d2b62b43ab0cc684fb1058a9b",
+      "value": "300"
+    },
+    {
+      "x": "0x78eb00ec1c005fec86a074060cc1bc7513000000000000000000000000001114",
+      "tokenAddr": "0xbd7ef3192822daa4cd5787d09d3cf4f2b61bb913",
+      "wanAddr": "0x5f58fa1c52710b49ff5e58e8ca2b7814de7db6ff",
+      "targetSmgAddr": "0x49867eed5fb7cb6d2b62b43ab0cc684fb1058a9b",
+      "value": "400"
     }
-  ]
+],
+  "coinOperations": []
 }
