@@ -71,7 +71,6 @@ async function init() {
         tokenList[crossChain][tokenType] = {};
 
         tokenList[crossChain][tokenType].wanchainHtlcAddr = moduleConfig.crossInfoDict[crossChain][tokenType].wanchainHtlcAddr;
-        //tokenList[crossChain][tokenType].smgAddr = moduleConfig.crossInfoDict[crossChain][tokenType].smgAddr;
         tokenList[crossChain][tokenType].originalChainHtlcAddr = moduleConfig.crossInfoDict[crossChain][tokenType].originalChainHtlcAddr;
 
         tokenList.wanchainHtlcAddr.push(moduleConfig.crossInfoDict[crossChain][tokenType].wanchainHtlcAddr);
@@ -265,25 +264,6 @@ async function syncMain(logger, db) {
   }
 }
 
-/* When storeman restart, change all waitingIntervention state to interventionPending, to auto retry the test*/
-async function updateRecordAfterRestart(logger) {
-  let option = {
-    status: {
-      $in: ['waitingIntervention']
-    }
-  }
-  let changeList = await modelOps.getEventHistory(option);
-  let content = {
-    status: 'interventionPending'
-  }
-  logger.debug('changeList length is ', changeList.length);
-  for (let i = 0; i < changeList.length; i++) {
-    let record = changeList[i];
-    await modelOps.syncSave(record.hashX, content);
-  }
-  logger.debug('updateRecordAfterRestart finished!');
-}
-
 function monitorRecord(record) {
   let stateAction = new StateAction(record, global.monitorLogger, db);
   stateAction.takeAction()
@@ -379,7 +359,7 @@ async function updateDebtOptionsToDb() {
             crossAddress: item.wanAddr,   //wan address of the stopping storeman group.
             toHtlcAddr: item.targetSmgAddr,      //address of the target storeman group.
             value: item.value,               //value for cross-transfer.
-            HTLCtime: (1000 * 2 * lockedTime + Date.now()).toString(),
+            HTLCtime: (1000 * 2 * lockedTime + Date.now()).toString(),    //2 htlc time.
             status: 'debtTransfer'
         };
         //save content to db.
@@ -413,7 +393,6 @@ async function main() {
   //Get debt transaction configurations from configuration file.
   updateDebtOptionsToDb();
   syncMain(global.syncLogger, db);
-  await updateRecordAfterRestart(global.monitorLogger);
   handlerMain(global.monitorLogger, db);
 }
 main();
