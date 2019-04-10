@@ -5,7 +5,7 @@ const web3Mpc = require("./web3Mpc.js");
 var net = require('net');
 const moduleConfig = require('../conf/moduleConfig.js');
 const configJson = require('../conf/config.json');
-const config = moduleConfig.testnet?configJson.testnet:configJson.main;
+const config = configJson.main;
 
 const {
   getGlobalChain,
@@ -68,15 +68,15 @@ module.exports = class mpc {
         console.log("====>Data for sign done.");
         this.mpcWeb3.storeman.addValidMpcTx(this.sendTxArgs, (err, result) => {
           if (!err) {
-            global.monitorLogger.debug("********************************** mpc addValidMpcTx successfully **********************************", result, "hashX:", this.hashX);
+            global.monitorLogger.debug("====> mpc addValidMpcTx successfully:", result, "hashX:", this.hashX);
             resolve(result);
           } else {
-            global.monitorLogger.error("********************************** mpc addValidMpcTx failed **********************************", err, "hashX:", this.hashX);
+            global.monitorLogger.error("====> mpc addValidMpcTx failed:", err, "hashX:", this.hashX);
             reject(err);
           }
         })
       } catch (err) {
-        global.monitorLogger.error("********************************** mpc addValidMpcTx failed **********************************", err, "hashX:", this.hashX);
+        global.monitorLogger.error("====> mpc addValidMpcTx failed:", err, "hashX:", this.hashX);
         reject(err);
       }
     });

@@ -1,7 +1,7 @@
 const moduleConfig = require('../conf/moduleConfig.js');
 const configPath = '../conf/config.json';
 let configJson = require('../conf/config.json');
-let config = moduleConfig.testnet?configJson.testnet:configJson.main;
+let config = configJson.main;
 const fs = require('fs');
 
 const Web3 = require("web3");
@@ -12,7 +12,7 @@ const WanChain = require('../chain/wan');
 function getChain(chainType) {
   let loadConfig = function() {
     configJson = JSON.parse(fs.readFileSync('conf/config.json'));
-    config = moduleConfig.testnet?configJson.testnet:configJson.main;
+    config = configJson.main;
   }
   try{
     loadConfig();

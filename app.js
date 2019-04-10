@@ -11,7 +11,7 @@ const StateAction = require("./monitor/monitor.js");
 const createKeccakHash = require('keccak');
 const moduleConfig = require('./conf/moduleConfig.js');
 const configJson = require('./conf/config.json');
-const config = moduleConfig.testnet?configJson.testnet:configJson.main;
+const config = configJson.main;
 
 const {
   initChain,
@@ -71,7 +71,7 @@ async function init() {
         tokenList[crossChain][tokenType] = {};
 
         tokenList[crossChain][tokenType].wanchainHtlcAddr = moduleConfig.crossInfoDict[crossChain][tokenType].wanchainHtlcAddr;
-          tokenList[crossChain][tokenType].smgAddr = moduleConfig.crossInfoDict[crossChain][tokenType].smgAddr;
+        //tokenList[crossChain][tokenType].smgAddr = moduleConfig.crossInfoDict[crossChain][tokenType].smgAddr;
         tokenList[crossChain][tokenType].originalChainHtlcAddr = moduleConfig.crossInfoDict[crossChain][tokenType].originalChainHtlcAddr;
 
         tokenList.wanchainHtlcAddr.push(moduleConfig.crossInfoDict[crossChain][tokenType].wanchainHtlcAddr);
@@ -152,7 +152,7 @@ async function getScEvents(logger, chain, scAddr, topics, fromBlk, toBlk) {
   return events;
 }
 
-async function splitEvent(chainType, crossChain, tokenType, events, forSmg = false) {
+async function splitEvent(chainType, crossChain, tokenType, events) {
   let multiEvents =  [...events].map((event) => {
     return new Promise(async (resolve, reject) => {
       try {
@@ -165,44 +165,17 @@ async function splitEvent(chainType, crossChain, tokenType, events, forSmg = fal
           crossAgent = tokenTypeHandler.originCrossAgent;
         }
 
-        let decodeEvent;
-        if(forSmg !== true) {
-          decodeEvent = crossAgent.contract.parseEvent(event);
-        } else {
-          decodeEvent = crossAgent.smgContract.parseEvent(event);
-        }
+        let decodeEvent = crossAgent.contract.parseEvent(event);
 
         let content;
         if (decodeEvent === null) {
           resolve();
           return;
         } else {
-          if((forSmg === false) || ((forSmg === true) && (decodeEvent.event === 'StoremanGroupDebtTransferLogger'))) {
-            content = crossAgent.getDecodeEventDbData(chainType, crossChain, tokenType, decodeEvent, event, lockedTime);
-          }
-        }
-
-        /*Check debt transfer event.*/
-        if((decodeEvent.event === 'StoremanGroupDebtTransferLogger') && (content !== null)) {
-          let option = {hashX: {$in: [content[0]]}};
-          let history = await modelOps.getEventHistory(option);
-          if(history.length > 0) {
-              resolve();
-              return; //the event had been handled,so ignore the current one.
-          }
+          content = crossAgent.getDecodeEventDbData(chainType, crossChain, tokenType, decodeEvent, event, lockedTime);
         }
 
         if (content !== null) {
-          if(content[1].hasOwnProperty("walletRevokeEvent")) {
-            let option = {
-              hashX : content[0]
-            };
-            let result = await modelOps.getEventHistory(option);
-            if (result.length === 0) {
-              resolve();
-              return;
-            }
-          }
           modelOps.saveScannedEvent(...content);
         }
         resolve();
@@ -214,7 +187,7 @@ async function splitEvent(chainType, crossChain, tokenType, events, forSmg = fal
 
   try {
     await Promise.all(multiEvents);
-    syncLogger.debug("********************************** splitEvent done **********************************");
+    syncLogger.debug("====> splitEvent done");
   } catch (err) {
     global.syncLogger.error("splitEvent", err);
     return Promise.reject(err);
@@ -222,9 +195,8 @@ async function splitEvent(chainType, crossChain, tokenType, events, forSmg = fal
 }
 
 async function syncChain(chainType, crossChain, tokenType, scAddrList, logger, db) {
-  logger.debug("********************************** syncChain **********************************", chainType, crossChain, tokenType);
+  logger.debug("====> syncChain:", chainType, crossChain, tokenType);
   let scAddr = scAddrList['htlcAddr'];
-  let smgAddr = scAddrList['smgAddr'];
   let blockNumber = 0;
   try {
     blockNumber = await modelOps.getScannedBlockNumberSync(chainType);
@@ -244,7 +216,6 @@ async function syncChain(chainType, crossChain, tokenType, scAddrList, logger, d
   let curBlock = 0;
   let topics = [];
   let events = [];
-  let smgEvents = [];
 
   try {
     curBlock = await chain.getBlockNumberSync();
@@ -259,20 +230,12 @@ async function syncChain(chainType, crossChain, tokenType, scAddrList, logger, d
       if (from <= to) {
         events = await getScEvents(logger, chain, scAddr, topics, from, to);
         logger.info("events: ", chainType, events.length);
-
-        if((tokenType === 'ERC20') && (smgAddr !== 'undefined') && (chainType === 'wan')) {
-          smgEvents = await getScEvents(logger, chain, smgAddr, topics, from, to);
-          logger.info("storemanGroup contract events: ", chainType, smgEvents.length);
-        }
       }
       if (events.length > 0) {
         await splitEvent(chainType, crossChain, tokenType, events);
       }
-      if ((tokenType === 'ERC20') && (smgEvents.length > 0) && (chainType === 'wan')) {
-        await splitEvent(chainType, crossChain, tokenType, smgEvents, true);
-      }
       modelOps.saveScannedBlockNumber(chainType, to);
-      logger.info("********************************** saveState **********************************", chainType, crossChain, tokenType);
+      logger.info("====> saveState:", chainType, crossChain, tokenType);
     } catch (err) {
       logger.error("getScEvents from :", chainType, err);
       return;
@@ -290,7 +253,7 @@ async function syncMain(logger, db) {
           let scAddrList = {'htlcAddr':tokenList[crossChain][tokenType].originalChainHtlcAddr};
           syncChain(crossChain.toLowerCase(), crossChain, tokenType, scAddrList, logger, db);
 
-          scAddrList = {'htlcAddr':tokenList[crossChain][tokenType].wanchainHtlcAddr, 'smgAddr': tokenList[crossChain][tokenType].smgAddr};
+          scAddrList = {'htlcAddr':tokenList[crossChain][tokenType].wanchainHtlcAddr};
           syncChain('wan', crossChain, tokenType, scAddrList, logger, db);
         }
       }
@@ -335,51 +298,9 @@ function monitorRecord(record) {
 
 async function handlerMain(logger, db) {
   while (1) {
-    logger.info("********************************** handlerMain start **********************************");
+    logger.info("====> handlerMain start");
 
     try {
-      let htlcAddrFilter = tokenList.wanchainHtlcAddr.concat(tokenList.originalChainHtlcAddr);
-      let option = {
-        tokenAddr: {
-          $in: [...tokenList.supportTokenAddrs]
-        },
-        toHtlcAddr: {
-          $in: [...htlcAddrFilter]
-        },
-        storeman: {
-          $in: [config.storemanEth, config.storemanWan]
-        }
-      }
-      if (global.storemanRestart) {
-        option.status = {
-          $nin: ['redeemFinished', 'revokeFinished', 'transIgnored', 'fundLostFinished','debtTransfer', 'coinTransfer', 'debtApproved', 'debtWaitingWanInboundLock', 'debtTransferDone']
-        }
-        global.storemanRestart = false;
-      } else {
-        option.status = {
-          $nin: ['redeemFinished', 'revokeFinished', 'transIgnored', 'fundLostFinished', 'interventionPending','debtTransfer', 'coinTransfer', 'debtApproved', 'debtWaitingWanInboundLock', 'debtTransferDone']
-        }
-      }
-      let history = await modelOps.getEventHistory(option);
-      logger.debug('history length is ', history.length);
-      logger.debug('handlingList length is ', Object.keys(handlingList).length);
-
-      for (let i = 0; i < history.length; i++) {
-        let record = history[i];
-
-        let cur = Date.now();
-        if (handlingList[record.hashX]) {
-          continue;
-        }
-        handlingList[record.hashX] = cur;
-
-        try {
-          monitorRecord(record);
-        } catch (error) {
-          logger.error("monitorRecord error:", error);
-        }
-      }
-
       /* get debtTransfer event from db.*/
       let debtOption = {
         status: {
@@ -487,13 +408,9 @@ async function updateDebtOptionsToDb() {
 
 async function main() {
   global.syncLogger.info("start storeman agent");
-  if (Object.keys(config["crossTokens"]).length === 0) {
-    global.syncLogger.error("./init.sh storemanWanAddr storemanEthAddr");
-    global.syncLogger.error("To start storeman agent at the first time, you need to run init.sh with storemanWanAddr storemanEthAddr as paras!");
-    process.exit();
-  }
   await init();
 
+  //Get debt transaction configurations from configuration file.
   updateDebtOptionsToDb();
   syncMain(global.syncLogger, db);
   await updateRecordAfterRestart(global.monitorLogger);

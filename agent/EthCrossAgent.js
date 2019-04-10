@@ -14,7 +14,7 @@ let MPC = require("../mpc/mpc.js");
 
 const moduleConfig = require('../conf/moduleConfig.js');
 const configJson = require('../conf/config.json');
-const config = moduleConfig.testnet?configJson.testnet:configJson.main;
+const config = configJson.main;
 
 const Web3 = require("web3");
 const web3 = new Web3();
@@ -37,9 +37,9 @@ module.exports = class EthCrossAgent {
     this.contractAddr = (this.transChainType !== 'wan') ? crossInfoInst.originalChainHtlcAddr : crossInfoInst.wanchainHtlcAddr;
     this.contract = new Contract(abi, this.contractAddr);
 
-    let smgabi = crossInfoInst.smgAbi;
-    this.smgContractAddr = crossInfoInst.smgAddr;
-    this.smgContract = new Contract(smgabi, this.smgContractAddr);
+    //let smgabi = crossInfoInst.smgAbi;
+    //this.smgContractAddr = crossInfoInst.smgAddr;
+    //this.smgContract = new Contract(smgabi, this.smgContractAddr);
 
     this.crossFunc = (this.crossDirection === 0) ? crossInfoInst.depositFunc : crossInfoInst.withdrawFunc;
     this.crossEvent = (this.crossDirection === 0) ? crossInfoInst.depositEvent : crossInfoInst.withdrawEvent;
