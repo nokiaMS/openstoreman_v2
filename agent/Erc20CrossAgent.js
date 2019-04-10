@@ -69,30 +69,30 @@ module.exports = class Erc20CrossAgent extends EthCrossAgent {
     });
   }
   getApproveData() {
-    this.logger.debug("********************************** funcInterface **********************************", this.approveFunc);
+    this.logger.debug("====> funcInterface", this.approveFunc);
     this.logger.debug('getApproveData: approveFunc-', this.approveFunc, 'contractAddr-', this.contractAddr, 'amount-', this.amount);
     return this.tokenContract.constructData(this.approveFunc, this.contractAddr, this.amount);
   }
 
   getLockData() {
-    this.logger.debug("********************************** funcInterface **********************************", this.crossFunc[0], "hashX", this.hashKey);
+    this.logger.debug("====> funcInterface", this.crossFunc[0], "hashX", this.hashKey);
     this.logger.debug('getLockData: transChainType-', this.transChainType, 'crossDirection-', this.crossDirection, 'tokenAddr-', this.tokenAddr, 'hashKey-', this.hashKey, 'crossAddress-', this.crossAddress, 'Amount-', this.amount);
     return this.contract.constructData(this.crossFunc[0], this.tokenAddr, this.hashKey, this.crossAddress, this.amount);
   }
 
   getDebtLockData() {
-      this.logger.debug("********************************** debt funcInterface **********************************", this.crossFunc[0], "hashX", this.hashKey);
+      this.logger.debug("====> debt funcInterface", this.crossFunc[0], "hashX", this.hashKey);
       this.logger.debug('getDebtLockData: transChainType-', this.transChainType, 'crossDirection-', this.crossDirection, 'tokenAddr-', this.tokenAddr, 'hashKey-', this.hashKey, 'crossAddress-', this.crossAddress, 'Amount-', this.amount);
       return this.contract.constructData(this.crossFunc[0], this.tokenAddr, this.hashKey, this.record.toHtlcAddr, this.crossAddress, this.amount);
   }
 
   getRedeemData() {
-    this.logger.debug("********************************** funcInterface **********************************", this.crossFunc[1], "hashX", this.hashKey);
+    this.logger.debug("====> funcInterface", this.crossFunc[1], "hashX", this.hashKey);
     this.logger.debug('getRedeemData: transChainType-', this.transChainType, 'crossDirection-', this.crossDirection, 'tokenAddr-', this.tokenAddr, 'hashKey-', this.hashKey, 'key-', this.key);
     return this.contract.constructData(this.crossFunc[1], this.tokenAddr, this.key);
   }
   getRevokeData() {
-    this.logger.debug("********************************** funcInterface **********************************", this.crossFunc[2], "hashX", this.hashKey);
+    this.logger.debug("====> funcInterface", this.crossFunc[2], "hashX", this.hashKey);
     this.logger.debug('getRevokeData: transChainType-', this.transChainType, 'crossDirection-', this.crossDirection, 'tokenAddr-', this.tokenAddr, 'hashKey-', this.hashKey);
     return this.contract.constructData(this.crossFunc[2], this.tokenAddr, this.hashKey);
   }
@@ -123,13 +123,13 @@ module.exports = class Erc20CrossAgent extends EthCrossAgent {
       this.build = this.buildLockData;
     }
 
-    this.logger.debug("********************************** setData **********************************", this.data, "hashX", this.hashKey);
+    this.logger.debug("====> setData", this.data, "hashX", this.hashKey);
     this.trans.setData(this.data);
     this.trans.setValue(0);
   }
 
   buildApproveZeroData(hashKey, result) {
-    this.logger.debug("********************************** insertApproveZeroData trans **********************************", hashKey);
+    this.logger.debug("====> insertApproveZeroData trans", hashKey);
 
     let content = {
       storemanApproveZeroTxHash: (Array.isArray(this.record.storemanApproveZeroTxHash)) ? [...this.record.storemanApproveZeroTxHash] : [this.record.storemanApproveZeroTxHash]
@@ -139,7 +139,7 @@ module.exports = class Erc20CrossAgent extends EthCrossAgent {
   }
 
   buildApproveData(hashKey, result) {
-    this.logger.debug("********************************** insertApproveData trans **********************************", hashKey);
+    this.logger.debug("====> insertApproveData trans", hashKey);
 
     let content = {
       storemanApproveTxHash: (Array.isArray(this.record.storemanApproveTxHash)) ? [...this.record.storemanApproveTxHash] : [this.record.storemanApproveTxHash]

@@ -32,10 +32,26 @@ var stateDict = {
     ]
   },
   debtWaitingWanInboundLock: {
+    action: 'debtWaitingWanInbound',
+    paras: [
+        ['debtSendingRedeem'], ['debtSendingRevoke', 'debtOutOfTryTimes']
+    ]
+  },
+  debtSendingRedeem: {
     action: 'handleDebtTransfer',
     paras: [
-        ['redeem'], ['debtTransferDone'], ['debtWaitingWanInboundLock', 'debtOutOfTryTimes']
+        ['redeem'],['debtRedeemDone'], ['debtSendingRedeem', 'debtOutOfTryTimes']
     ]
+  },
+  debtSendingRevoke: {
+    action: 'handleDebtTransfer',
+    paras: [
+        ['revoke'],['debtRevokeDone'], ['debtSendingRevoke', 'debtOutOfTryTimes']
+    ]
+  },
+  debtOutOfTryTimes: {
+    action: 'debtOutOfTryTimesHandler',
+    paras: []
   }
 };
 
@@ -109,22 +125,16 @@ module.exports = class stateAction {
     console.log("BlockFromTo:", blkFrom, blkTo);
     var address = moduleConfig.crossInfoDict.ETH.ERC20.wanchainHtlcAddr;
     var topic = [null, null, null, this.hashX];
-    console.log(address, topic, blkFrom, blkTo);
+    this.logger.debug("====> hasStoremanLockEvent","wanchainHtlcAddr", address, "topic", topic, "blkFrom", blkFrom, "blkTo", blkTo);
 
     var events = await getGlobalChain('wan').getScEventSync(address, topic, blkFrom, blkTo);
-    console.log("hasStoremanLockEvent:", events);
+    this.logger.debug("====> hasStoremanLockEvent:", "length:", events.length, "events:", events);
 
     return (events.length > 0);
   }
 
   async handleCoinTransfer(actionArray, nextState) {
     this.logger.debug("====> handleCoinTransfer begin");
-
-    /*
-    this.logger.debug("******** handleCoinTransfer record info ********");
-    this.logger.debug(this.record);
-    this.logger.debug("******** handleCoinTransfer record info end ********");
-    */
 
     let result = {};
     let newAgent;
@@ -135,13 +145,11 @@ module.exports = class stateAction {
         this.logger.debug("====> handleCoinTransfer asleep wake up");
       }
         for (var action of actionArray) {
-          //console.log('hasStoremanLockEvent', action);
                 if(this.record.coinTransferChain === 'wan') {
                     newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record);
                 } else if(this.record.coinTransferChain === 'eth'){
                     newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
                 }
-                //let newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
                 this.logger.debug("====> handleCoinTransfer sendTrans begin, hashX:", this.hashX, "action:", action);
                 await newAgent.initAgentTransInfo(action);
 
@@ -157,12 +165,6 @@ module.exports = class stateAction {
                 }
                 newAgent.createTrans('coinTransfer');
                 newAgent.trans.txParams.data = '';
-
-                /*
-                this.logger.debug("******** handleCoinTransfer transaction info ********");
-                this.logger.debug(newAgent.trans);
-                this.logger.debug("******** handleCoinTransfer transaction info end ********");
-                */
 
                 if (config.isLeader || !(moduleConfig.mpcSignature)) {
                     let content = await newAgent.sendTransSync();
@@ -196,12 +198,6 @@ module.exports = class stateAction {
   async handleDebtTransfer(actionArray, nextState, rollState) {
     this.logger.debug("====> handleDebtTransfer begin");
 
-    /*
-    this.logger.debug("******** handleDebtTransfer record info ********");
-    this.logger.debug(this.record);
-    this.logger.debug("******** handleDebtTransfer record info end ********");
-    */
-
     let result = {};
     let newAgent;
     try {
@@ -211,9 +207,8 @@ module.exports = class stateAction {
         this.logger.debug("====> handleDebtTransfer asleep wake up");
       }
       for (var action of actionArray) {
-        //console.log('hasStoremanLockEvent', action);
         if((action === 'redeem') && (!(await this.hasStoremanLockEvent()))) {
-            console.log("====>Action:", action,"Not receive inboundLock event from target smg.");
+            console.log("====>Action:", action,"Has not received inboundLock event from target smg now.");
             return;
         }
 
@@ -222,7 +217,6 @@ module.exports = class stateAction {
         } else {
             newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
         }
-        //let newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record, 'handleDebtTransfer');
         this.logger.debug("====> handleDebtTransfer sendTrans begin, hashX:", this.hashX, "action:", action);
         await newAgent.initAgentTransInfo(action);
 
@@ -231,12 +225,6 @@ module.exports = class stateAction {
           newAgent.trans.txParams.from = config.storemanWan;
         }
         newAgent.createTrans(action);
-
-        /*
-        this.logger.debug("******** handleDebtTransfer transaction info ********");
-        this.logger.debug(newAgent.trans);
-        this.logger.debug("******** handleDebtTransfer transaction info end ********");
-        */
 
         if (config.isLeader || !(moduleConfig.mpcSignature)) {
           let content = await newAgent.sendTransSync();
@@ -267,7 +255,32 @@ module.exports = class stateAction {
     }
   }
 
-  async checkHashTimeout() {
+  /*Waiting inboundLock at wan side.*/
+  async debtWaitingWanInbound(nextState, rollState) {
+    this.logger.debug("====> debtWaitingWanInbound begin:", "key:",this.record.hashX);
+    let status;
+    if(Date.now() >= this.record.HTLCtime) {//Need revoke, The value is actually 2HTLCtime.
+      let content = {
+        status: nextState[0]
+      };
+    } else {
+      let content = {
+        status: rollState[0]
+      };
+    }
+    await this.updateRecord(content);
+    this.logger.debug("====> debtWaitingWanInbound end:", "hash:", this.record.hashX, "status:", content.status);
+  }
+
+  //Need manual options for this scenario.
+  async debtOutOfTryTimesHandler() {
+    this.logger.debug("====> debtOutOfTryTimesHandler:", "key:",this.record.hashX);
+    this.logger.debug("====> The operation count on this transaction has exceeded the max times, need manual operation for hash:", this.record.hashX);
+    return;
+  }
+
+
+    async checkHashTimeout() {
     return false;
   }
 }
