@@ -237,7 +237,7 @@ module.exports = class EthCrossAgent {
   }
 
   getLockData() {
-    this.logger.debug("********************************** funcInterface **********************************", this.crossFunc[0], "hashX", this.hashKey);
+    this.logger.debug("====>funcInterface", this.crossFunc[0], "hashX", this.hashKey);
     this.logger.debug('getLockData: transChainType-', this.transChainType, 'crossDirection-', this.crossDirection, 'tokenAddr-', this.tokenAddr, 'hashKey-', this.hashKey, 'crossAddress-', this.crossAddress, 'Amount-', this.amount);
     if (this.crossDirection === 0) {
       return this.contract.constructData(this.crossFunc[0], this.hashKey, this.crossAddress, this.amount);
@@ -247,12 +247,12 @@ module.exports = class EthCrossAgent {
     
   }
   getRedeemData() {
-    this.logger.debug("********************************** funcInterface **********************************", this.crossFunc[1], "hashX", this.hashKey);
+    this.logger.debug("====>funcInterface", this.crossFunc[1], "hashX", this.hashKey);
     this.logger.debug('getRedeemData: transChainType-', this.transChainType, 'crossDirection-', this.crossDirection, 'tokenAddr-', this.tokenAddr, 'hashKey-', this.hashKey, 'key-', this.key);
     return this.contract.constructData(this.crossFunc[1], this.key);
   }
   getRevokeData() {
-    this.logger.debug("********************************** funcInterface **********************************", this.crossFunc[2], "hashX", this.hashKey);
+    this.logger.debug("====>funcInterface", this.crossFunc[2], "hashX", this.hashKey);
     this.logger.debug('getRevokeData: transChainType-', this.transChainType, 'crossDirection-', this.crossDirection, 'tokenAddr-', this.tokenAddr, 'hashKey-', this.hashKey);
     return this.contract.constructData(this.crossFunc[2], this.hashKey);
   }
@@ -286,7 +286,7 @@ module.exports = class EthCrossAgent {
       this.build = this.buildRevokeData;
     }
 
-    this.logger.debug("********************************** setData **********************************", this.data, "hashX", this.hashKey);
+    this.logger.debug("====>setData", this.data, "hashX", this.hashKey);
     this.trans.setData(this.data);
     if (this.crossDirection === 1 && action === 'lock'){
       this.trans.setValue(this.amount.toString(16));
@@ -310,7 +310,7 @@ module.exports = class EthCrossAgent {
   }
 
   async sendTrans(callback) {
-    this.logger.debug("********************************** sendTransaction ********************************** hashX", this.hashKey);
+    this.logger.debug("====>sendTransaction,hashX", this.hashKey);
 
     try {
       let rawTx;
@@ -318,7 +318,7 @@ module.exports = class EthCrossAgent {
         let chainId = await this.chain.getNetworkId();
         let mpc = new MPC(this.trans.txParams, this.chain.chainType, chainId, this.hashKey);
         rawTx = await mpc.signViaMpc();
-        this.logger.debug("********************************** sendTransaction signViaMpc ********************************** hashX", this.hashKey, rawTx);
+        this.logger.debug("====>sendTransaction signViaMpc,hashX", this.hashKey, rawTx);
       } else {
         let password = process.env.KEYSTORE_PWD;;
         this.trans.txParams.gasPrice = '0x' + this.trans.txParams.gasPrice.toString(16);
@@ -332,22 +332,22 @@ module.exports = class EthCrossAgent {
       this.chain.sendRawTransaction(rawTx, (err, result) => {
         if (!err) {
           self.logger.debug("sendRawTransaction result: ", result);
-          this.logger.debug("********************************** sendTransaction success ********************************** hashX", self.hashKey);
+          this.logger.debug("====>sendTransaction success,hashX", self.hashKey);
           let content = self.build(self.hashKey, result);
           callback(err, content);
         } else {
-          this.logger.error("********************************** sendTransaction failed ********************************** hashX", self.hashKey);
+          this.logger.error("====>sendTransaction failed,hashX", self.hashKey);
           callback(err, result);
         }
       });
     } catch (err) {
-      this.logger.error("********************************** sendTransaction failed ********************************** hashX", this.hashKey, err);
+      this.logger.error("====>sendTransaction failed,hashX", this.hashKey, err);
       callback(err, null);
     }
   }
 
   validateTrans() {
-    this.logger.debug("********************************** validateTrans ********************************** hashX", this.hashKey);
+    this.logger.debug("====>validateTrans,hashX", this.hashKey);
     return new Promise(async (resolve, reject) => {
       try {
         let chainId = await this.chain.getNetworkId();
@@ -356,14 +356,14 @@ module.exports = class EthCrossAgent {
         mpc.addValidMpcTx();
         resolve();
       } catch (err) {
-        this.logger.error("********************************** validateTrans failed ********************************** hashX", this.hashKey, err);
+        this.logger.error("====>validateTrans failed,hashX", this.hashKey, err);
         reject(err);
       }
     });
   }
 
   buildLockData(hashKey, result) {
-    this.logger.debug("********************************** insertLockData trans **********************************", hashKey);
+    this.logger.debug("====>insertLockData trans", hashKey);
 
     let content = {
       storemanLockTxHash: (Array.isArray(this.record.storemanLockTxHash)) ? [...this.record.storemanLockTxHash] : [this.record.storemanLockTxHash]
@@ -373,7 +373,7 @@ module.exports = class EthCrossAgent {
   }
 
   buildCoinTransfer(hashKey, result) {
-      this.logger.debug("********************************** buildCoinTransfer trans **********************************", hashKey);
+      this.logger.debug("====>buildCoinTransfer trans", hashKey);
 
       let content = {
           coinTransferHash: result
@@ -382,7 +382,7 @@ module.exports = class EthCrossAgent {
   }
 
   buildRedeemData(hashKey, result) {
-    this.logger.debug("********************************** insertRedeemData trans **********************************", hashKey);
+    this.logger.debug("====>insertRedeemData trans", hashKey);
 
     let content = {
       storemanRedeemTxHash: (Array.isArray(this.record.storemanRedeemTxHash)) ? [...this.record.storemanRedeemTxHash] : [this.record.storemanRedeemTxHash]
@@ -392,7 +392,7 @@ module.exports = class EthCrossAgent {
   }
 
   buildRevokeData(hashKey, result) {
-    this.logger.debug("********************************** insertRevokeData trans **********************************", hashKey);
+    this.logger.debug("====> insertRevokeData trans", hashKey);
 
     let content = {
       storemanRevokeTxHash: (Array.isArray(this.record.storemanRevokeTxHash)) ? [...this.record.storemanRevokeTxHash] : [this.record.storemanRevokeTxHash]
@@ -409,110 +409,21 @@ module.exports = class EthCrossAgent {
     return decodeEvent.args.storeman;
   }
 
-  getHashKey(key){
-    let kBuf = new Buffer(key.slice(2), 'hex');
-    let h = createKeccakHash('keccak256');
-    h.update(kBuf);
-    let hashKey = '0x' + h.digest('hex');
-    this.logger.debug('input key:', key);
-    this.logger.debug('input hash key:', hashKey);
-    return hashKey;
-  }
-
   getDecodeEventDbData(chainType, crossChain, tokenType, decodeEvent, event, lockedTime) {
     let content = {};
     let args = decodeEvent.args;
     let eventName = decodeEvent.event;
     let eventX;
-    let hashX;
+    let hashX = args.xHash;
     let storeman;
 
-    if ((eventName === this.crossInfoInst.debtTransferEvent[0]) && (chainType === 'wan')) {
-      eventX = args.xHash;
-      hashX = this.getHashKey(eventX);
-    } else {
-      hashX = args.xHash;
-    }
-
     try {
-      if ((eventName === this.crossInfoInst.debtTransferEvent[0]) && (chainType === 'wan')) {  //dealwith debt transfer event.
-          this.logger.debug("********************************** Deal with debt transfer event ********************************** hashX", hashX);
-          content = {
-              x: eventX,
-              hashX: hashX,
-              direction: 0,
-              crossChain: crossChain.toLowerCase(),
-              tokenType: tokenType,
-              tokenAddr: args._tokenOrigAddr,       //token address.
-              crossAddress: args._locatedMpcAddr,   //wan address of the stopping storeman group.
-              toHtlcAddr: args._objectSmgAddr,      //address of the target storeman group.
-              value: args._debtValue,               //value for cross-transfer.
-              status: 'debtTransfer'
-          };
-          return [hashX, content];
-        }
       if (!((eventName === this.crossInfoInst.depositEvent[2] && chainType !== 'wan') ||
         (eventName === this.crossInfoInst.withdrawEvent[2] && chainType === 'wan'))) {
         storeman = this.getDecodeEventStoremanGroup(decodeEvent);
         if([config.storemanEth, config.storemanWan].indexOf(storeman) === -1) {
           return null;
         }
-      }
-      if ((eventName === this.crossInfoInst.depositEvent[0] && chainType !== 'wan') ||
-        (eventName === this.crossInfoInst.withdrawEvent[0] && chainType === 'wan')) {
-        this.logger.debug("********************************** 1: found new wallet lock transaction ********************************** hashX", hashX);
-        let tokenAddr = this.getDecodeEventTokenAddr(decodeEvent);
-        content = {
-          hashX: hashX,
-          direction: (chainType !== 'wan') ? 0 : 1,
-          crossChain: crossChain.toLowerCase(),
-          tokenType: tokenType,
-          tokenAddr: tokenAddr,
-          tokenSymbol: config.crossTokens[crossChain][tokenAddr].tokenSymbol,
-          originChain: chainType,
-          from: (chainType !== 'wan') ? args.user : args.wanAddr,
-          crossAddress: (chainType !== 'wan') ? args.wanAddr : args.ethAddr,
-          toHtlcAddr: decodeEvent.address,
-          storeman: storeman,
-          value: args.value,
-          blockNumber: decodeEvent.blockNumber,
-          timestamp: decodeEvent.timestamp * 1000,
-          lockedTime: lockedTime * 1000,
-          suspendTime: (1000 * (lockedTime - lockedTime / moduleConfig.secureLockIntervalRatio) + Number(decodeEvent.timestamp) * 1000).toString(),
-          HTLCtime: (1000 * 2 * lockedTime + Number(decodeEvent.timestamp) * 1000).toString(),
-          walletLockEvent: event
-        };
-      } else if ((eventName === this.crossInfoInst.depositEvent[0] && chainType === 'wan') ||
-        (eventName === this.crossInfoInst.withdrawEvent[0] && chainType !== 'wan')) {
-        this.logger.debug("********************************** 2: found storeman lock transaction ********************************** hashX", hashX);
-        content = {
-          storemanLockEvent: event
-        };
-      } else if ((eventName === this.crossInfoInst.depositEvent[1] && chainType === 'wan') ||
-        (eventName === this.crossInfoInst.withdrawEvent[1] && chainType !== 'wan')) {
-        this.logger.debug("********************************** 3: found wallet redeem transaction ********************************** hashX", hashX);
-        content = {
-          x: args.x,
-          walletRedeemEvent: event
-        };
-      } else if ((eventName === this.crossInfoInst.depositEvent[1] && chainType !== 'wan') ||
-        (eventName === this.crossInfoInst.withdrawEvent[1] && chainType === 'wan')) {
-        this.logger.debug("********************************** 4: found storeman redeem transaction ********************************** hashX", hashX);
-        content = {
-          storemanRedeemEvent: event
-        };
-      } else if ((eventName === this.crossInfoInst.depositEvent[2] && chainType !== 'wan') ||
-        (eventName === this.crossInfoInst.withdrawEvent[2] && chainType === 'wan')) {
-        this.logger.debug("********************************** 5: found wallet revoke transaction ********************************** hashX", hashX);
-        content = {
-          walletRevokeEvent: event,
-        };
-      } else if ((eventName === this.crossInfoInst.depositEvent[2] && chainType === 'wan') ||
-        (eventName === this.crossInfoInst.withdrawEvent[2] && chainType !== 'wan')) {
-        this.logger.debug("********************************** 6: found storeman revoke transaction ********************************** hashX", hashX);
-        content = {
-          storemanRevokeEvent: event
-        };
       }
       return [hashX, content];
     } catch (err) {

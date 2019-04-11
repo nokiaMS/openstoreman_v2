@@ -44,16 +44,16 @@ module.exports = class mpc {
         console.log("====>Data for sign done.");
         this.mpcWeb3.storeman.signMpcTransaction(this.sendTxArgs, (err, result) => {
           if (!err) {
-            global.monitorLogger.debug("********************************** mpc signViaMpc successfully **********************************", result, "hashX:", this.hashX);
+            global.monitorLogger.debug("====> mpc signViaMpc successfully:", result, "hashX:", this.hashX);
             resolve(result);
 
           } else {
-            global.monitorLogger.error("********************************** mpc signViaMpc failed **********************************", err, "hashX:", this.hashX);
+            global.monitorLogger.error("====> mpc signViaMpc failed:", err, "hashX:", this.hashX);
             reject(err);
           }
         })
       } catch (err) {
-        global.monitorLogger.error("********************************** mpc signViaMpc failed **********************************", err, "hashX:", this.hashX);
+        global.monitorLogger.error("====> mpc signViaMpc failed", err, "hashX:", this.hashX);
         reject(err);
       }
     });

@@ -116,8 +116,7 @@ module.exports = class stateAction {
       }
     })
   }
-
-  //add by lgj
+  
   async hasStoremanLockEvent() {
     var blkTo = await global['wanChain'].getBlockNumberSync();
     var blkFrom = blkTo - 2000;
@@ -259,12 +258,13 @@ module.exports = class stateAction {
   async debtWaitingWanInbound(nextState, rollState) {
     this.logger.debug("====> debtWaitingWanInbound begin:", "key:",this.record.hashX);
     let status;
-    if(Date.now() >= this.record.HTLCtime) {//Need revoke, The value is actually 2HTLCtime.
-      let content = {
+    let content;
+    if(Date.now() < this.record.HTLCtime) {//Need revoke, The value is actually 2HTLCtime.
+      content = {
         status: nextState[0]
       };
     } else {
-      let content = {
+      content = {
         status: rollState[0]
       };
     }

@@ -26,10 +26,8 @@ const config = {
   logServerPort: 514,
 
   SAFE_BLOCK_NUM: 100,
-  CONFIRM_BLOCK_NUM: 12,
+  CONFIRM_BLOCK_NUM: 2,
   INTERVAL_TIME: 15 * 1000,
-
-  secureLockIntervalRatio: 20, /*lock action needed to be done before suspendTime - 1/20 lockedTime*/ 
 
   approveTokenAllowance: 40000, /* unit ether*/
   tokenAllowanceThreshold: 500, /* unit ether*/
@@ -51,8 +49,8 @@ const config = {
   unusualErc20Abi: [{ "constant": true, "inputs": [], "name": "name", "outputs": [{ "name": "", "type": "string" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": false, "inputs": [{ "name": "_spender", "type": "address" }, { "name": "_value", "type": "uint256" }], "name": "approve", "outputs": [{ "name": "", "type": "bool" }], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": true, "inputs": [], "name": "totalSupply", "outputs": [{ "name": "", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": false, "inputs": [{ "name": "_from", "type": "address" }, { "name": "_to", "type": "address" }, { "name": "_value", "type": "uint256" }], "name": "transferFrom", "outputs": [{ "name": "", "type": "bool" }], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": true, "inputs": [], "name": "decimals", "outputs": [{ "name": "", "type": "uint8" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": true, "inputs": [{ "name": "_owner", "type": "address" }], "name": "balanceOf", "outputs": [{ "name": "balance", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": true, "inputs": [], "name": "symbol", "outputs": [{ "name": "", "type": "bytes32" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": false, "inputs": [{ "name": "_to", "type": "address" }, { "name": "_value", "type": "uint256" }], "name": "transfer", "outputs": [{ "name": "", "type": "bool" }], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": true, "inputs": [{ "name": "_owner", "type": "address" }, { "name": "_spender", "type": "address" }], "name": "allowance", "outputs": [{ "name": "", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }, { "payable": true, "stateMutability": "payable", "type": "fallback" }, { "anonymous": false, "inputs": [{ "indexed": true, "name": "owner", "type": "address" }, { "indexed": true, "name": "spender", "type": "address" }, { "indexed": false, "name": "value", "type": "uint256" }], "name": "Approval", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "name": "from", "type": "address" }, { "indexed": true, "name": "to", "type": "address" }, { "indexed": false, "name": "value", "type": "uint256" }], "name": "Transfer", "type": "event" }],
 
   startSyncBlockNum: {
-    ETH: 2749,
-    WAN: 7698
+    ETH: 1521,
+    WAN: 100
   },
 
   crossInfoDict: {
@@ -62,9 +60,6 @@ const config = {
         depositEvent: ['InboundLockLogger', 'InboundRedeemLogger', 'InboundRevokeLogger'],
         withdrawFunc: ['outboundLock', 'outboundRedeem', 'outboundRevoke'],
         withdrawEvent: ['OutboundLockLogger', 'OutboundRedeemLogger', 'OutboundRevokeLogger'],
-
-        debtTransferFunc: [],
-        debtTransferEvent: ['StoremanGroupDebtTransferLogger'],
 
         /* on WAN chain */
         wanchainHtlcAddr: '0x7ab71f108c800776f1556dd94747c7129378dcb4',

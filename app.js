@@ -103,99 +103,8 @@ function splitData(string) {
   return arr;
 }
 
-async function getScEvents(logger, chain, scAddr, topics, fromBlk, toBlk) {
-  let events;
-  let cntPerTime = 50;
-  try {
-    events = await chain.getScEventSync(scAddr, topics, fromBlk, toBlk, moduleConfig.web3RetryTimes);
-  } catch (err) {
-    logger.error("getScEvents", err);
-    return Promise.reject(err);
-  }
-
-  let i = 0;
-  let end;
-  logger.info("events length: ", events.length);
-  while (i < events.length) {
-    if ((i + cntPerTime) > events.length) {
-      end = events.length;
-    } else {
-      end = i + cntPerTime;
-    }
-    let arr = events.slice(i, end);
-    let multiEvents = [...arr].map((event) => {
-      return new Promise((resolve, reject) => {
-        if(event === null) {
-          logger.debug("event is null")
-          resolve();
-        }
-        chain.getBlockByNumber(event.blockNumber, function(err, block) {
-          if (err) {
-            reject(err);
-          } else {
-            event.timestamp = block.timestamp;
-            resolve();
-          }
-        });
-      });
-    });
-
-    try {
-      await Promise.all(multiEvents);
-    } catch (err) {
-      logger.error("getScEvents", err);
-      return Promise.reject(err);
-    }
-    i += cntPerTime;
-  }
-  return events;
-}
-
-async function splitEvent(chainType, crossChain, tokenType, events) {
-  let multiEvents =  [...events].map((event) => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        let tokenTypeHandler = tokenList[crossChain][tokenType];
-        let lockedTime = tokenList[crossChain][tokenType].lockedTime; 
-        let crossAgent;
-        if (chainType === 'wan') {
-          crossAgent = tokenTypeHandler.wanCrossAgent;
-        } else {
-          crossAgent = tokenTypeHandler.originCrossAgent;
-        }
-
-        let decodeEvent = crossAgent.contract.parseEvent(event);
-
-        let content;
-        if (decodeEvent === null) {
-          resolve();
-          return;
-        } else {
-          content = crossAgent.getDecodeEventDbData(chainType, crossChain, tokenType, decodeEvent, event, lockedTime);
-        }
-
-        if (content !== null) {
-          modelOps.saveScannedEvent(...content);
-        }
-        resolve();
-      } catch (err) {
-        reject(err);
-      }
-    });
-  });
-
-  try {
-    await Promise.all(multiEvents);
-    syncLogger.debug("====> splitEvent done");
-  } catch (err) {
-    global.syncLogger.error("splitEvent", err);
-    return Promise.reject(err);
-  }
-}
-
 async function syncChain(chainType, crossChain, tokenType, scAddrList, logger, db) {
   logger.debug("====> syncChain:", chainType, crossChain, tokenType);
-  let scAddr = scAddrList['htlcAddr'];
   let blockNumber = 0;
   try {
     blockNumber = await modelOps.getScannedBlockNumberSync(chainType);
@@ -211,10 +120,7 @@ async function syncChain(chainType, crossChain, tokenType, scAddrList, logger, d
   }
 
   let chain = getGlobalChain(chainType);
-  let from = blockNumber;
   let curBlock = 0;
-  let topics = [];
-  let events = [];
 
   try {
     curBlock = await chain.getBlockNumberSync();
@@ -222,23 +128,6 @@ async function syncChain(chainType, crossChain, tokenType, scAddrList, logger, d
   } catch (err) {
     logger.error("getBlockNumberSync from :", chainType, err);
     return;
-  }
-  if (curBlock > moduleConfig.CONFIRM_BLOCK_NUM) {
-    let to = curBlock - moduleConfig.CONFIRM_BLOCK_NUM;
-    try {
-      if (from <= to) {
-        events = await getScEvents(logger, chain, scAddr, topics, from, to);
-        logger.info("events: ", chainType, events.length);
-      }
-      if (events.length > 0) {
-        await splitEvent(chainType, crossChain, tokenType, events);
-      }
-      modelOps.saveScannedBlockNumber(chainType, to);
-      logger.info("====> saveState:", chainType, crossChain, tokenType);
-    } catch (err) {
-      logger.error("getScEvents from :", chainType, err);
-      return;
-    }
   }
 }
 
@@ -284,7 +173,7 @@ async function handlerMain(logger, db) {
       /* get debtTransfer event from db.*/
       let debtOption = {
         status: {
-          $in: ['debtTransfer', 'coinTransfer', 'debtWaitingWanInboundLock', 'debtApproved']
+          $in: ['debtTransfer', 'coinTransfer', 'debtWaitingWanInboundLock','debtSendingRedeem','debtSendingRevoke','debtOutOfTryTimes', 'debtApproved']
         }
       }
 
@@ -333,8 +222,7 @@ function getHashKey(key){
     let h = createKeccakHash('keccak256');
     h.update(kBuf);
     let hashKey = '0x' + h.digest('hex');
-    console.log('input key:', key);
-    console.log('input hash key:', hashKey);
+    global.monitorLogger.info("====> getHashKey, key:", key, "hash:",hashKey);
     return hashKey;
 }
 
@@ -346,9 +234,23 @@ async function updateDebtOptionsToDb() {
     let lockedTime = tokenList.ETH.ERC20.lockedTime;
 
     //2. make db content and save to db.
-    debtOperations.forEach(function (item, index, array) {
+    debtOperations.forEach(async function (item, index, array) {
         //2.1 get parameters
         let hashX = getHashKey(item.x);
+        global.monitorLogger.info("====> Get task from configuration file:", item);
+
+        //2.2 check whether hash has been dealed with.
+        let option = {
+            hash: {
+                $in: [hashX]
+            }
+        };
+        let result = await modelOps.getEventHistory(option);
+        if(result.length > 0) {
+            global.monitorLogger.info("====> Task x:", item.x, "exists, so ignore it.");
+            return;
+        }
+
         let content = {
             hashX: hashX,
             x: item.x,
@@ -368,15 +270,27 @@ async function updateDebtOptionsToDb() {
     });
 
     //3. make db content and save to db.
-    coinOperations.forEach(function (item, index, array) {
-        //3.1 get parameters
+    coinOperations.forEach(async function (item, index, array) {
+        //1. check whether hash has been dealed with.
+        let option = {
+            hash: {
+                $in: [item.index]
+            }
+        };
+        let result = await modelOps.getEventHistory(option);
+        if(result.length > 0) {
+            global.monitorLogger.info("====> Task x:", item.x, "exists, so ignore it.");
+            return;
+        }
+
+        //2. get parameters
         let content = {
             hashX: item.index,
             direction: 0,
             crossChain: 'eth',
             tokenType: 'ERC20',
             toHtlcAddr: item.targetAddr,      //address of the target storeman group.
-            value: item.value,               //value for cross-transfer.
+            value: item.value,                //value for cross-transfer.
             status: 'coinTransfer',
             coinTransferChain: item.targetChain //target chain
         };
