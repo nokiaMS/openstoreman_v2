@@ -51,7 +51,7 @@ var stateDict = {
   },
   debtOutOfTryTimes: {
     action: 'debtOutOfTryTimesHandler',
-    paras: []
+    paras: [['debtSendingRevoke']]
   }
 };
 
@@ -273,14 +273,24 @@ module.exports = class stateAction {
   }
 
   //Need manual options for this scenario.
-  async debtOutOfTryTimesHandler() {
+  async debtOutOfTryTimesHandler(nextState) {
     this.logger.debug("====> debtOutOfTryTimesHandler:", "key:",this.record.hashX);
-    this.logger.debug("====> The operation count on this transaction has exceeded the max times, need manual operation for hash:", this.record.hashX);
+
+    //Inbound lock transaction has been sent.
+    if(this.record.storemanLockTxHash.length > 0) {
+      if(Date.now() >= this.record.HTLCtime) {
+          //Need revoke.
+          let content = {
+            status: nextState[0]
+          }
+          await this.updateRecord(content);
+          this.logger.debug("====> debtOutOfTryTimesHandler Need revoke:", "hash:", this.record.hashX, "status:", content.status);
+      }
+    }
     return;
   }
-
-
-    async checkHashTimeout() {
+  
+  async checkHashTimeout() {
     return false;
   }
 }
