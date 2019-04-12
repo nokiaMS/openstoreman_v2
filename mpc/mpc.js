@@ -14,13 +14,18 @@ const {
 
 module.exports = class mpc {
   constructor(trans, chainType, chainId, hashX) {
+    let tmpValue = trans.value.toString(16);
+    if(tmpValue.slice(0,2) !== '0x') {
+      tmpValue = '0x' + tmpValue;
+    };
+
     this.sendTxArgs = {
       From: trans.from,
       To: trans.to,
       Gas: '0x' + trans.gasLimit.toString(16),
       GasPrice: '0x' + trans.gasPrice.toString(16),
       Nonce: '0x' + trans.nonce.toString(16),
-      Value: '0x' + trans.value.toString(16),
+      Value: tmpValue,
       Data: trans.data,
       ChainType: chainType,
       ChainID: '0x' + parseInt(chainId).toString(16)

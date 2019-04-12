@@ -2,6 +2,9 @@
 
 const Logger = require('./comm/logger.js');
 
+const Web3 = require("web3");
+const web3 = new Web3();
+
 const mongoose = require('mongoose');
 const ModelOps = require('./db/modelOps');
 const Erc20CrossAgent = require("./agent/Erc20CrossAgent.js");
@@ -241,7 +244,7 @@ async function updateDebtOptionsToDb() {
 
         //2.2 check whether hash has been dealed with.
         let option = {
-            hash: {
+            hashX: {
                 $in: [hashX]
             }
         };
@@ -279,7 +282,7 @@ async function updateDebtOptionsToDb() {
         };
         let result = await modelOps.getEventHistory(option);
         if(result.length > 0) {
-            global.monitorLogger.info("====> Task x:", item.x, "exists, so ignore it.");
+            global.monitorLogger.info("====> Task x:", item.index, "exists, so ignore it.");
             return;
         }
 
@@ -290,7 +293,7 @@ async function updateDebtOptionsToDb() {
             crossChain: 'eth',
             tokenType: 'ERC20',
             toHtlcAddr: item.targetAddr,      //address of the target storeman group.
-            value: item.value,                //value for cross-transfer.
+            value: web3.toHex(item.value),                //value for cross-transfer.
             status: 'coinTransfer',
             coinTransferChain: item.targetChain //target chain
         };

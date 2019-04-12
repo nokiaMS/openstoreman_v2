@@ -9,7 +9,7 @@ if(user) {
 }
 
 const config = {
-  crossEthDbUrl: dbUrl + "/debtOperationsDb1",
+  crossEthDbUrl: dbUrl + "/debtOperationsDb0000",
   email: {
     "region": "us-west-2",
     "sender": "monitor@wanchain.org"
