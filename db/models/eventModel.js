@@ -115,12 +115,10 @@ const eventSchema = new Schema({
     type: Number,
     default: 0
   },
-    /*
   walletLockEvent: {
     type: Array,
     default: []
   },
-    */
   storemanApproveZeroTxHash: {
     type: Array,
     lowercase: true,
@@ -136,7 +134,6 @@ const eventSchema = new Schema({
     lowercase: true,
     default: []
   },
-    /*
   storemanLockEvent: {
     type: Array,
     default: []
@@ -145,13 +142,11 @@ const eventSchema = new Schema({
     type: Array,
     default: []
   },
-    */
   storemanRedeemTxHash: {
     type: Array,
     lowercase: true,
     default: []
   },
-    /*
   storemanRedeemEvent: {
     type: Array,
     default: []
@@ -160,18 +155,15 @@ const eventSchema = new Schema({
     type: Array,
     default: []
   },
-    */
   storemanRevokeTxHash: {
     type: Array,
     lowercase: true,
     default: []
   },
-  /*
   storemanRevokeEvent: {
     type: Array,
     default: []
   },
-  */
 }, {
   collection: 'event'
 });

@@ -156,6 +156,25 @@ async function syncMain(logger, db) {
   }
 }
 
+/* When storeman restart, change all waitingIntervention state to interventionPending, to auto retry the test*/
+async function updateRecordAfterRestart(logger) {
+    let option = {
+        status: {
+            $in: ['debtOutOfTryTimes']
+        }
+    }
+    let changeList = await modelOps.getEventHistory(option);
+    logger.debug('changeList length is ', changeList.length);
+    for (let i = 0; i < changeList.length; i++) {
+        let content = {
+            status: 'stateChange'
+        }
+        let record = changeList[i];
+        await modelOps.syncSave(record.hashX, content);
+    }
+    logger.debug('updateRecordAfterRestart finished!');
+}
+
 function monitorRecord(record) {
   let stateAction = new StateAction(record, global.monitorLogger, db);
   stateAction.takeAction()
@@ -176,7 +195,7 @@ async function handlerMain(logger, db) {
       /* get debtTransfer event from db.*/
       let debtOption = {
         status: {
-          $in: ['debtTransfer', 'coinTransfer', 'debtWaitingWanInboundLock','debtSendingRedeem','debtSendingRevoke','debtOutOfTryTimes', 'debtApproved']
+          $in: ['debtTransfer', 'coinTransfer', 'debtWaitingWanInboundLock','debtSendingRedeem','debtSendingRevoke', 'debtApproved', 'stateChange']
         }
       }
 
@@ -264,7 +283,7 @@ async function updateDebtOptionsToDb() {
             crossAddress: item.wanAddr,   //wan address of the stopping storeman group.
             toHtlcAddr: item.targetSmgAddr,      //address of the target storeman group.
             value: item.value,               //value for cross-transfer.
-            HTLCtime: (1000 * 2 * lockedTime + Date.now()).toString(),    //2 htlc time.
+            HTLCtime: (1000 * lockedTime + Date.now()).toString(),    //htlc time.
             status: 'debtTransfer'
         };
         //save content to db.
@@ -276,8 +295,8 @@ async function updateDebtOptionsToDb() {
     coinOperations.forEach(async function (item, index, array) {
         //1. check whether hash has been dealed with.
         let option = {
-            hash: {
-                $in: [item.index]
+            hashX: {
+                $in: [item.hashX]
             }
         };
         let result = await modelOps.getEventHistory(option);
@@ -288,7 +307,7 @@ async function updateDebtOptionsToDb() {
 
         //2. get parameters
         let content = {
-            hashX: item.index,
+            hashX: item.hashX,
             direction: 0,
             crossChain: 'eth',
             tokenType: 'ERC20',
@@ -310,6 +329,7 @@ async function main() {
   //Get debt transaction configurations from configuration file.
   updateDebtOptionsToDb();
   syncMain(global.syncLogger, db);
+  await updateRecordAfterRestart(global.monitorLogger);
   handlerMain(global.monitorLogger, db);
 }
 main();

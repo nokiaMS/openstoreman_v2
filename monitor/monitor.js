@@ -17,7 +17,7 @@ var stateDict = {
   coinTransfer: {
     action: 'handleCoinTransfer',
     paras: [
-        ['coinTransfer'],['coinTransferDone', 'debtOutOfTryTimes']]
+        ['coinTransfer'],['coinTransferDone', 'coinOutOfTryTimes']]
   },
   debtTransfer: {
     action: 'handleDebtTransfer',
@@ -25,7 +25,7 @@ var stateDict = {
         ['approve'], ['debtApproved'], ['debtTransfer', 'debtOutOfTryTimes']
     ]
   },
-    debtApproved: {
+  debtApproved: {
     action: 'handleDebtTransfer',
     paras: [
         ['debtLock'], ['debtWaitingWanInboundLock'], ['debtApproved', 'debtOutOfTryTimes']
@@ -34,13 +34,13 @@ var stateDict = {
   debtWaitingWanInboundLock: {
     action: 'debtWaitingWanInbound',
     paras: [
-        ['debtSendingRedeem'], ['debtSendingRevoke', 'debtOutOfTryTimes']
+        ['debtSendingRedeem'], ['debtSendingRevoke', 'debtTargetSmgRevoked']
     ]
   },
   debtSendingRedeem: {
     action: 'handleDebtTransfer',
     paras: [
-        ['redeem'],['debtRedeemDone'], ['debtSendingRedeem', 'debtOutOfTryTimes']
+        ['redeem'],['debtRedeemDone'], ['debtWaitingWanInboundLock', 'debtOutOfTryTimes']
     ]
   },
   debtSendingRevoke: {
@@ -49,9 +49,9 @@ var stateDict = {
         ['revoke'],['debtRevokeDone'], ['debtSendingRevoke', 'debtOutOfTryTimes']
     ]
   },
-  debtOutOfTryTimes: {
-    action: 'debtOutOfTryTimesHandler',
-    paras: [['debtSendingRevoke']]
+  stateChange: {
+    action: 'stateChangeHandler',
+    paras: []
   }
 };
 
@@ -116,11 +116,12 @@ module.exports = class stateAction {
       }
     })
   }
-  
+
+  /*
   async hasStoremanLockEvent() {
     var blkTo = await global['wanChain'].getBlockNumberSync();
-    var blkFrom = blkTo - 2000;
-    if (blkTo < 2000) blkFrom = 0;
+    var blkFrom = blkTo - moduleConfig.SAFE_BLOCK_NUM;
+    if (blkTo < moduleConfig.SAFE_BLOCK_NUM) blkFrom = 0;
     console.log("BlockFromTo:", blkFrom, blkTo);
     var address = moduleConfig.crossInfoDict.ETH.ERC20.wanchainHtlcAddr;
     var topic = [null, null, null, this.hashX];
@@ -130,6 +131,61 @@ module.exports = class stateAction {
     this.logger.debug("====> hasStoremanLockEvent:", "length:", events.length, "events:", events);
 
     return (events.length > 0);
+  }
+  */
+
+  async hasStoremanLockEvent() {
+      var web3 = global['wanChain'].theWeb3;
+      var htlcWanContract = web3.eth.contract(moduleConfig.crossInfoDict.ETH.ERC20.wanchainHtlcAbi);
+      var htlcWanContractInst = htlcWanContract.at(moduleConfig.crossInfoDict.ETH.ERC20.wanchainHtlcAddr);
+
+      var blkTo = await global['wanChain'].getBlockNumberSync();
+      var blkFrom = blkTo - moduleConfig.SAFE_BLOCK_NUM;
+      if (blkTo < moduleConfig.SAFE_BLOCK_NUM) blkFrom = 0;
+      console.log("BlockFromTo:", blkFrom, blkTo);
+
+      var events = htlcWanContractInst.allEvents({fromBlock:blkFrom, toBlock: blkTo});
+      events.get((err, logs) => {
+          let hashX = this.hashX;
+          //console.log("get results");
+          logs.forEach((item, index, array) => {
+              if((item.event === 'InboundLockLogger') && (item.args.xHash === hashX)) {
+                  console.log("====>Received inboundLockLogger from htlcWan, hash:", hashX, item);
+                  //Write this event to db.
+                  let content = {
+                      storemanLockEvent: [item]
+                  }
+                  this.updateRecord(content);
+              }
+          })
+      })
+  }
+
+  async hasStoremanRevokeEvent() {
+      var web3 = global['ethChain'].theWeb3;
+      var htlcEthContract = web3.eth.contract(moduleConfig.crossInfoDict.ETH.ERC20.originalChainHtlcAbi);
+      var htlcEthContractInst = htlcWanContract.at(moduleConfig.crossInfoDict.ETH.ERC20.originalChainHtlcAddr);
+
+      var blkTo = await global['ethChain'].getBlockNumberSync();
+      var blkFrom = blkTo - moduleConfig.SAFE_BLOCK_NUM;
+      if (blkTo < moduleConfig.SAFE_BLOCK_NUM) blkFrom = 0;
+      console.log("BlockFromTo:", blkFrom, blkTo);
+
+      var events = htlcEthContractInst.allEvents({fromBlock:blkFrom, toBlock: blkTo});
+      events.get((err, logs) => {
+          let hashX = this.hashX;
+          //console.log("get results");
+          logs.forEach((item, index, array) => {
+              if((item.event === 'InboundRevokeLogger') && (item.args.xHash === hashX)) {
+                  console.log("====>Received InboundRevokeLogger from htlcEth, hash:", hashX, item);
+                  //Write this event to db.
+                  let content = {
+                      storemanRevokeEvent: [item]
+                  }
+                  this.updateRecord(content);
+              }
+          })
+      })
   }
 
   async handleCoinTransfer(actionArray, nextState) {
@@ -206,10 +262,12 @@ module.exports = class stateAction {
         this.logger.debug("====> handleDebtTransfer asleep wake up");
       }
       for (var action of actionArray) {
+        /*
         if((action === 'redeem') && (!(await this.hasStoremanLockEvent()))) {
             console.log("====>Action:", action,"Has not received inboundLock event from target smg now.");
             return;
         }
+        */
 
         if(action === 'redeem') {
             newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record);
@@ -258,17 +316,34 @@ module.exports = class stateAction {
   async debtWaitingWanInbound(nextState, rollState) {
     this.logger.debug("====> debtWaitingWanInbound begin:", "key:",this.record.hashX);
     let status;
-    let content;
-    if(Date.now() < this.record.HTLCtime) {//Need revoke, The value is actually 2HTLCtime.
-      content = {
-        status: nextState[0]
-      };
-    } else {
+    let content = {};
+    if(Date.now() < this.record.HTLCtime) { // Could redeem in this period.
+        if(this.record.storemanLockEvent.length === 0) {
+            this.logger.debug("====> check target smg inboundLockLogger event,", "key:",this.record.hashX);
+            await this.hasStoremanLockEvent();
+        } else {   //Change state to send redeem transaction.
+            content = {
+                status: nextState[0]
+            };
+        }
+    } else if( this.record.HTLCtime <= Date.now() < 2* this.record.HTLCtime ) {
+        if(this.record.storemanRevokeEvent.length === 0) {
+            this.logger.debug("====> check target smg InboundRevokeLogger event,", "key:",this.record.hashX);
+            await this.hasStoremanRevokeEvent()
+        } else {
+            content = {
+                status: rollState[1]
+            };
+        }
+    } else if(Date.now() >= 2 * this.record.HTLCtime) { //Need send revoke transaction.
       content = {
         status: rollState[0]
       };
     }
-    await this.updateRecord(content);
+
+    if(content !== {}) {
+        await this.updateRecord(content);
+    }
     this.logger.debug("====> debtWaitingWanInbound end:", "hash:", this.record.hashX, "status:", content.status);
   }
 
@@ -288,6 +363,33 @@ module.exports = class stateAction {
       }
     }
     return;
+  }
+
+  async stateChangeHandler() {
+      let content;
+      if(this.record.failAction === 'approve') {
+          content = {
+              status: 'debtTransfer',
+              failAction: ""
+          }
+      } else if(this.record.failAction === 'debtLock') {
+          content = {
+              status: 'debtApproved',
+              failAction: ""
+          }
+      } else if(this.record.failAction === 'redeem') {
+          content = {
+              status: 'debtWaitingWanInboundLock',
+              failAction: ""
+          }
+      } else if(this.record.failAction === 'revoke') {
+          content = {
+              status: 'debtSendingRevoke',
+              failAction: ""
+          }
+      }
+      console.log("Func: stateChangeHandler, change status:", content);
+      await this.updateRecord(content);
   }
   
   async checkHashTimeout() {
