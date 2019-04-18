@@ -107,6 +107,10 @@ const eventSchema = new Schema({
     type: Number,
     default: 0
   },
+  HTLCtime2: {
+    type: Number,
+    default: 0
+  },
   transRetried:{
     type: Number,
     default: 0

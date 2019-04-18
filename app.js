@@ -284,6 +284,7 @@ async function updateDebtOptionsToDb() {
             toHtlcAddr: item.targetSmgAddr,      //address of the target storeman group.
             value: item.value,               //value for cross-transfer.
             HTLCtime: (1000 * lockedTime + Date.now()).toString(),    //htlc time.
+            HTLCtime2: (2 * 1000 * lockedTime + Date.now()).toString(),    //2 * htlc time.
             status: 'debtTransfer'
         };
         //save content to db.

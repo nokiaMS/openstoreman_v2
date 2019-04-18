@@ -117,23 +117,6 @@ module.exports = class stateAction {
     })
   }
 
-  /*
-  async hasStoremanLockEvent() {
-    var blkTo = await global['wanChain'].getBlockNumberSync();
-    var blkFrom = blkTo - moduleConfig.SAFE_BLOCK_NUM;
-    if (blkTo < moduleConfig.SAFE_BLOCK_NUM) blkFrom = 0;
-    console.log("BlockFromTo:", blkFrom, blkTo);
-    var address = moduleConfig.crossInfoDict.ETH.ERC20.wanchainHtlcAddr;
-    var topic = [null, null, null, this.hashX];
-    this.logger.debug("====> hasStoremanLockEvent","wanchainHtlcAddr", address, "topic", topic, "blkFrom", blkFrom, "blkTo", blkTo);
-
-    var events = await getGlobalChain('wan').getScEventSync(address, topic, blkFrom, blkTo);
-    this.logger.debug("====> hasStoremanLockEvent:", "length:", events.length, "events:", events);
-
-    return (events.length > 0);
-  }
-  */
-
   async hasStoremanLockEvent() {
       var web3 = global['wanChain'].theWeb3;
       var htlcWanContract = web3.eth.contract(moduleConfig.crossInfoDict.ETH.ERC20.wanchainHtlcAbi);
@@ -164,7 +147,7 @@ module.exports = class stateAction {
   async hasStoremanRevokeEvent() {
       var web3 = global['ethChain'].theWeb3;
       var htlcEthContract = web3.eth.contract(moduleConfig.crossInfoDict.ETH.ERC20.originalChainHtlcAbi);
-      var htlcEthContractInst = htlcWanContract.at(moduleConfig.crossInfoDict.ETH.ERC20.originalChainHtlcAddr);
+      var htlcEthContractInst = htlcEthContract.at(moduleConfig.crossInfoDict.ETH.ERC20.originalChainHtlcAddr);
 
       var blkTo = await global['ethChain'].getBlockNumberSync();
       var blkFrom = blkTo - moduleConfig.SAFE_BLOCK_NUM;
@@ -262,13 +245,6 @@ module.exports = class stateAction {
         this.logger.debug("====> handleDebtTransfer asleep wake up");
       }
       for (var action of actionArray) {
-        /*
-        if((action === 'redeem') && (!(await this.hasStoremanLockEvent()))) {
-            console.log("====>Action:", action,"Has not received inboundLock event from target smg now.");
-            return;
-        }
-        */
-
         if(action === 'redeem') {
             newAgent = new global.agentDict[this.crossChain.toUpperCase()][this.tokenType](this.crossChain, this.tokenType, this.crossDirection, this.record);
         } else {
@@ -280,6 +256,9 @@ module.exports = class stateAction {
         /*Change redeem source address.*/
         if(action === 'redeem') {
           newAgent.trans.txParams.from = config.storemanWan;
+        }
+        if(action === 'revoke') {
+            newAgent.trans.txParams.from = config.storemanEth;
         }
         newAgent.createTrans(action);
 
@@ -317,7 +296,9 @@ module.exports = class stateAction {
     this.logger.debug("====> debtWaitingWanInbound begin:", "key:",this.record.hashX);
     let status;
     let content = {};
-    if(Date.now() < this.record.HTLCtime) { // Could redeem in this period.
+    let nowTime = Date.now();
+    console.log("now:", nowTime,"htlcTime:", this.record.HTLCtime, "2htlcTime:", this.record.HTLCtime2);
+    if(nowTime < this.record.HTLCtime) { // Could redeem in this period.
         if(this.record.storemanLockEvent.length === 0) {
             this.logger.debug("====> check target smg inboundLockLogger event,", "key:",this.record.hashX);
             await this.hasStoremanLockEvent();
@@ -326,7 +307,7 @@ module.exports = class stateAction {
                 status: nextState[0]
             };
         }
-    } else if( this.record.HTLCtime <= Date.now() < 2* this.record.HTLCtime ) {
+    } else if((this.record.HTLCtime <= nowTime) && ( nowTime < this.record.HTLCtime2) ) {
         if(this.record.storemanRevokeEvent.length === 0) {
             this.logger.debug("====> check target smg InboundRevokeLogger event,", "key:",this.record.hashX);
             await this.hasStoremanRevokeEvent()
@@ -335,7 +316,7 @@ module.exports = class stateAction {
                 status: rollState[1]
             };
         }
-    } else if(Date.now() >= 2 * this.record.HTLCtime) { //Need send revoke transaction.
+    } else if(nowTime >= this.record.HTLCtime2) { //Need send revoke transaction.
       content = {
         status: rollState[0]
       };
